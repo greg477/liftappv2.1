@@ -26,8 +26,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
   padding:8px 4px;cursor:pointer;transition:color .15s;min-height:var(--nav)}
 .nb.on{color:var(--mode)}
 .nb svg{width:22px;height:22px;stroke-width:1.8}
-.page-head{padding:20px 16px 12px;display:flex;align-items:flex-start;justify-content:space-between}
-.page-title{font-size:24px;font-weight:700;letter-spacing:-.3px}
+.page-head{padding:20px 16px 10px;display:flex;align-items:flex-start;justify-content:space-between}
+.page-title{font-size:26px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
 .page-sub{font-size:12px;color:var(--txt2);margin-top:2px}
 .sec-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
   color:var(--txt3);margin-bottom:10px}
@@ -166,11 +166,11 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 #splash{position:fixed;inset:0;background:#000;z-index:999;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   transition:opacity .7s ease;pointer-events:none}
-#splash img{width:180px;height:180px;border-radius:32px;
+#splash img{width:240px;height:240px;border-radius:40px;
   filter:grayscale(100%) contrast(1.1);
   animation:splash-pop .55s cubic-bezier(.22,1,.36,1) both}
-#splash .splash-name{font-size:42px;font-weight:900;letter-spacing:.08em;
-  text-transform:uppercase;color:#fff;margin-top:24px;
+#splash .splash-name{font-size:52px;font-weight:900;letter-spacing:.12em;
+  text-transform:uppercase;color:#fff;margin-top:28px;
   opacity:0;animation:fade-up .45s .4s both}
 #splash .splash-rule{width:48px;height:2px;background:#fff;margin:12px auto 0;
   opacity:0;animation:fade-up .4s .55s both}
@@ -184,6 +184,17 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
   display:flex;align-items:center;justify-content:center;overflow:hidden}
 #wm img{width:340px;height:340px;object-fit:contain;
   filter:grayscale(100%);opacity:.04}
+
+/* Bottom wordmark for non-active screens */
+.screen-wordmark{display:flex;flex-direction:column;align-items:center;
+  padding:32px 0 24px;opacity:.12;pointer-events:none;user-select:none}
+.screen-wordmark img{width:64px;height:64px;border-radius:11px;
+  filter:grayscale(100%);margin-bottom:10px}
+.screen-wordmark .wm-text{font-size:20px;font-weight:900;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--txt)}
+.screen-wordmark .wm-rule{width:28px;height:1.5px;background:var(--txt);margin:6px auto}
+.screen-wordmark .wm-sub{font-size:8px;font-weight:600;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--txt)}
 </style>
 </head>
 <body>
@@ -1212,7 +1223,7 @@ function rHome(){
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   if(!ap){
     return`
-<div class="page-head"><div>
+<div class="page-head"><div style="text-align:center;width:100%">
   <div class="page-title">Lift</div>
   <div class="page-sub">${today}</div>
 </div></div>
@@ -1233,8 +1244,8 @@ function rHome(){
   const mode=ap[S.activeDayIdx]?.mode||S.mode;
 
   return`
-<div class="page-head">
-  <div>
+<div class="page-head" style="justify-content:center">
+  <div style="text-align:center">
     <div class="page-title">Lift</div>
     <div class="page-sub">${today}</div>
   </div>
@@ -1315,6 +1326,7 @@ function rHome(){
   <div style="font-size:12px;color:var(--txt3);text-align:center;margin-top:8px;margin-bottom:30px">
     ${MODES[ap[S.activeDayIdx]?.mode||S.mode].desc}
   </div>
+  ${screenWordmark()}
 </div>`;
 }
 
@@ -1324,8 +1336,8 @@ function rHome(){
 function rBuilder(){
   const step=S.bStep;
   return`
-<div class="page-head">
-  <div>
+<div class="page-head" style="justify-content:center">
+  <div style="text-align:center">
     <div class="page-title">Plan</div>
     <div class="page-sub">${['','Select Goal','Select Days','Choose Split','Preview'][step]}</div>
   </div>
@@ -1387,6 +1399,19 @@ function rBStep2(){
 }
 
 function autoSelectSplit(){
+  // Pick the first split matching the selected day count; prefer common splits
+  const preferred = {
+    2:['full-body-2','push-pull-2','torso-limbs-2'],
+    3:['full-body-3','antagonist-3','ppl-3','dup-3','legs-push-pull-3'],
+    4:['upper-lower-4','phul-4','classic-4'],
+    5:['ul-5','phat-5','body-part-5'],
+    6:['ppl-6','arnold-6'],
+  };
+  const order = preferred[S.bDays] || [];
+  const match = order.find(k => SPLITS[k]) ||
+    Object.keys(SPLITS).find(k => SPLITS[k].days === S.bDays);
+  if(match) S.bSplit = match;
+}
 
 function rBStep3(){
   const entries=Object.entries(SPLITS);
@@ -1438,7 +1463,7 @@ ${dayNums.map(d=>`
 </div>`;
 }
 
-
+function buildPreview(){
   const sp=SPLITS[S.bSplit];
   S.bCollapsed=new Set(); // reset collapse state when preview is rebuilt
   S.bPreview=sp.schedule.map((day,i)=>{
@@ -1788,8 +1813,8 @@ function rTimer(){
 function rHistory(){
   const h=getHistory();
   return`
-<div class="page-head">
-  <div><div class="page-title">Log</div><div class="page-sub">${h.length} session${h.length===1?'':'s'}</div></div>
+<div class="page-head" style="justify-content:space-between;align-items:center">
+  <div style="text-align:left"><div class="page-title">Log</div><div class="page-sub">${h.length} session${h.length===1?'':'s'}</div></div>
   <div style="display:flex;gap:8px;align-items:center">
     <button onclick="importBackup()" style="background:none;border:1px solid var(--border2);color:var(--txt2);
       font-size:12px;font-weight:500;padding:5px 11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px">
@@ -1829,6 +1854,7 @@ function rHistory(){
       <div style="font-size:12px;color:var(--txt3);margin-top:8px">${vol.toLocaleString()} lbs total volume</div>
     </div>`;
   }).join('')}
+  ${screenWordmark()}
 </div>`;
 }
 
@@ -1931,8 +1957,8 @@ function rProgress(){
   if(!exOpts.find(([id])=>id===S.progEx)&&exOpts.length>0)S.progEx=exOpts[0][0];
   const h=getHistory();
   return`
-<div class="page-head">
-  <div><div class="page-title">Progress</div><div class="page-sub">Est. 1RM · Epley formula</div></div>
+<div class="page-head" style="justify-content:center">
+  <div style="text-align:center"><div class="page-title">Progress</div><div class="page-sub">Est. 1RM · Epley formula</div></div>
 </div>
 
 <!-- Muscle group filter -->
@@ -1979,7 +2005,8 @@ function rProgress(){
         </div>
       </div>`;
     }).join('')}
-  <div style="height:30px"></div>
+  <div style="height:30px">
+  ${screenWordmark()}</div>
 </div>`;
 }
 
@@ -2651,6 +2678,17 @@ function init(){
   smartSelectDay();
   // Show splash first, then render the app
   showSplash(()=>render());
+}
+
+function screenWordmark(){
+  const img=document.querySelector('#wm img');
+  const src=img?img.src:'';
+  return`<div class="screen-wordmark">
+    ${src?`<img src="${src}" alt="">`:''}
+    <div class="wm-text">Lift</div>
+    <div class="wm-rule"></div>
+    <div class="wm-sub">Work Harder · Train Smarter</div>
+  </div>`;
 }
 
 (function(){
