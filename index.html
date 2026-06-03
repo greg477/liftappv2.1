@@ -314,9 +314,11 @@ const PROG_THRESHOLDS = {strength:5, hypertrophy:10, endurance:20};
 // Each day has: label, primary muscle groups, optional secondary
 // =====================================================================
 const SPLITS = {
+
+  // ── 2-DAY ──────────────────────────────────────────────────────────
   'full-body-2': {
     name:'Full Body 2×/week', days:2, icon:'⊞',
-    evidence:'Minimum effective dose for each muscle group. Ideal for maintenance phases or busy schedules. Both sessions train the full body with A/B variation to distribute stress.',
+    evidence:'Minimum effective dose for each muscle group. Ideal for maintenance phases or time-constrained schedules. Both sessions train the full body with A/B variation to distribute stress.',
     ref:'Schoenfeld et al. 2016 (Strength & Cond. J.); Ralston et al. 2017 (JSCR)',
     freq:'2×/week per muscle', level:'Beginner · Maintenance',
     tags:['2×/week each muscle','Time-efficient','Compound-focused'],
@@ -325,9 +327,35 @@ const SPLITS = {
       {label:'Full Body B', pri:['Legs','Posterior','Shoulders'], sec:['Chest','Back','Core']},
     ]
   },
+
+  'push-pull-2': {
+    name:'Push / Pull 2-Day', days:2, icon:'⇅',
+    evidence:'Alternating push and pull sessions trains each muscle group 1× per day, and when rotated A/B/A — B/A/B across weeks delivers 1.5×/week frequency. Highly efficient, low setup complexity. Ideal when schedule limits training to 2 sessions.',
+    ref:'Colquhoun et al. 2018 (J. Strength Cond.); Raastad et al. compound-first principle',
+    freq:'1–1.5×/week per muscle', level:'Beginner–Intermediate',
+    tags:['Simple rotation','Complementary pairing','Scalable frequency'],
+    schedule:[
+      {label:'Push',  pri:['Chest','Shoulders','Triceps'], sec:['Back']},
+      {label:'Pull',  pri:['Back','Biceps','Posterior'],   sec:['Shoulders','Core']},
+    ]
+  },
+
+  'torso-limbs-2': {
+    name:'Torso / Limbs 2-Day', days:2, icon:'◐',
+    evidence:"Lyle McDonald's Generic Bulking Routine structure. Torso day (chest, back, shoulders) paired with limbs day (legs, arms, core). Allows very high trunk muscle frequency when done 3-4×/week in alternating fashion.",
+    ref:"McDonald 2006 'Generic Bulking Routine'; Israetel on frequency; Krieger 2010 (JSCR)",
+    freq:'1.5–2×/week per muscle', level:'Intermediate · High Frequency',
+    tags:['Trunk + limbs split','High weekly frequency','Flexible schedule'],
+    schedule:[
+      {label:'Torso', pri:['Chest','Back','Shoulders'],              sec:['Biceps','Triceps']},
+      {label:'Limbs', pri:['Legs','Posterior'],                      sec:['Biceps','Triceps','Core']},
+    ]
+  },
+
+  // ── 3-DAY ──────────────────────────────────────────────────────────
   'full-body-3': {
     name:'Full Body 3×/week', days:3, icon:'⊟',
-    evidence:'Strongest evidence for raw strength development. High stimulus frequency (3×/week per muscle) maximizes MPS signaling. Compound-movement focused — the Starting Strength and GZCLP model.',
+    evidence:'Strongest evidence base for raw strength. High stimulus frequency (3×/week per muscle) maximizes MPS signaling. Compound-movement focused — the Starting Strength and GZCLP model.',
     ref:'Rippetoe & Kilgore 2011; Colquhoun et al. 2018 (J. Strength Cond.)',
     freq:'3×/week per muscle', level:'Beginner–Intermediate · Strength',
     tags:['3×/week each muscle','Strength-optimal','Compound-first'],
@@ -337,22 +365,36 @@ const SPLITS = {
       {label:'Day C', pri:['Chest','Back','Legs'],          sec:['Biceps','Triceps']},
     ]
   },
-  'upper-lower-4': {
-    name:'Upper / Lower 4×/week', days:4, icon:'⊠',
-    evidence:'Gold standard for intermediate hypertrophy. Trains each muscle group twice per week with sufficient inter-session recovery (~48 hrs). Allows higher per-session volume than full-body. Best supported split for hypertrophy in the literature.',
-    ref:'Lyle McDonald (2006); Schoenfeld 2016 meta-analysis; Krieger 2010',
-    freq:'2×/week per muscle', level:'Intermediate · Hypertrophy',
-    tags:['2×/week each muscle','Hypertrophy-optimal','Balanced recovery'],
+
+  'dup-3': {
+    name:'Daily Undulating Periodization (DUP)', days:3, icon:'≋',
+    evidence:'Each session trains the full body at a different intensity zone — one strength, one hypertrophy, one endurance. DUP is consistently shown superior to linear periodization for intermediate lifters. Different rep ranges each session prevents accommodation and optimizes neuromuscular adaptation across all rep ranges simultaneously.',
+    ref:'Rhea et al. 2002 (JSCR); Miranda et al. 2011 (JSCR); Zourdos et al. 2016 (JSCR)',
+    freq:'3×/week per muscle', level:'Intermediate · Periodization',
+    tags:['3 intensity zones','Anti-accommodation','Evidence-superior to linear'],
     schedule:[
-      {label:'Upper A (Strength bias)', pri:['Chest','Back'],             sec:['Shoulders']},
-      {label:'Lower A (Strength bias)', pri:['Legs','Posterior'],         sec:['Core']},
-      {label:'Upper B (Hypertrophy bias)',pri:['Chest','Back','Shoulders'],sec:['Biceps','Triceps']},
-      {label:'Lower B (Hypertrophy bias)',pri:['Legs','Posterior'],        sec:['Core','Biceps']},
+      {label:'Strength Day',    pri:['Chest','Back','Legs','Shoulders'], sec:['Core'],           mode:'strength'},
+      {label:'Hypertrophy Day', pri:['Chest','Back','Legs','Shoulders'], sec:['Biceps','Triceps'],mode:'hypertrophy'},
+      {label:'Endurance Day',   pri:['Legs','Back','Chest'],             sec:['Core','Shoulders'],mode:'endurance'},
     ]
   },
+
+  'antagonist-3': {
+    name:'Antagonist Pairs 3-Day', days:3, icon:'⇌',
+    evidence:'Pairing opposing muscle groups (chest/back, biceps/triceps) allows agonist recovery during antagonist sets, enabling more total volume in less time. Schoenfeld and Weakley both cite antagonist supersets as an efficient hypertrophy strategy. High total volume with reduced session time.',
+    ref:'Schoenfeld 2010 (JSCR); Weakley et al. 2017 (JSCR); Westcott 2012',
+    freq:'1–2×/week per muscle', level:'Intermediate · Efficient',
+    tags:['Opposing muscles paired','Superset-friendly','Volume-efficient'],
+    schedule:[
+      {label:'Chest + Back',     pri:['Chest','Back'],               sec:['Shoulders','Core']},
+      {label:'Shoulders + Arms', pri:['Shoulders','Biceps','Triceps'],sec:['Chest','Back']},
+      {label:'Legs + Core',      pri:['Legs','Posterior'],           sec:['Core']},
+    ]
+  },
+
   'ppl-3': {
     name:'Push / Pull / Legs', days:3, icon:'◈',
-    evidence:'Classic bodybuilding split. Each muscle trained ~1×/week. Adequate volume per session but lower frequency than upper/lower. Evidence suggests 2×/week superior for hypertrophy — consider PPL×2 for that benefit.',
+    evidence:'Classic bodybuilding split. Each muscle trained ~1×/week with high per-session volume. Evidence suggests 2×/week superior for hypertrophy — consider PPL 6× for that benefit. Best for lifters whose schedule forces 3 days with full recovery between sessions.',
     ref:'Schoenfeld et al. 2016 (1× vs 2×/week meta-analysis)',
     freq:'1×/week per muscle', level:'Intermediate · Classic',
     tags:['1×/week each muscle','High volume/session','Classic split'],
@@ -362,24 +404,67 @@ const SPLITS = {
       {label:'Legs', pri:['Legs','Posterior'],  sec:['Core']},
     ]
   },
-  'ppl-6': {
-    name:'PPL 6×/week (RP-Style)', days:6, icon:'⬡',
-    evidence:'Renaissance Periodization model (Israetel). PPL repeated twice delivers 2×/week per muscle with high volume per session. Best for advanced lifters who can tolerate and recover from high training volume (MEV → MAV range).',
-    ref:'Israetel, Hoffmann & Case 2019 (RP Hypertrophy); Colquhoun 2018',
-    freq:'2×/week per muscle', level:'Advanced · High volume',
-    tags:['2×/week each muscle','High volume','Advanced only'],
+
+  'legs-push-pull-3': {
+    name:'Legs / Push / Pull', days:3, icon:'◉',
+    evidence:'PPL variant that front-loads leg training when recovery is highest. Popular with intermediate lifters who find legs undertrained when placed last in the week. Same physiological basis as PPL — distinct by prioritizing lower body stimulus when energy and motivation are freshest.',
+    ref:'Colquhoun et al. 2018; Schoenfeld 2016 — same volume/frequency base as PPL',
+    freq:'1×/week per muscle', level:'Intermediate · Leg-priority',
+    tags:['Legs first priority','Push/pull secondary','1×/week per muscle'],
     schedule:[
-      {label:'Push A', pri:['Chest','Shoulders'], sec:['Triceps']},
-      {label:'Pull A', pri:['Back'],              sec:['Biceps','Posterior']},
-      {label:'Legs A', pri:['Legs','Posterior'],  sec:['Core']},
-      {label:'Push B', pri:['Chest','Shoulders'], sec:['Triceps']},
-      {label:'Pull B', pri:['Back'],              sec:['Biceps']},
-      {label:'Legs B', pri:['Legs','Posterior'],  sec:['Core']},
+      {label:'Legs', pri:['Legs','Posterior'],  sec:['Core']},
+      {label:'Push', pri:['Chest','Shoulders'], sec:['Triceps']},
+      {label:'Pull', pri:['Back'],              sec:['Biceps','Posterior']},
     ]
   },
+
+  // ── 4-DAY ──────────────────────────────────────────────────────────
+  'upper-lower-4': {
+    name:'Upper / Lower 4×/week', days:4, icon:'⊠',
+    evidence:'Gold standard for intermediate hypertrophy. Trains each muscle group twice per week with ~48 hrs inter-session recovery. Higher per-session volume than full-body. Best supported split in the hypertrophy literature for intermediate-to-advanced lifters.',
+    ref:'Lyle McDonald (2006); Schoenfeld 2016 meta-analysis; Krieger 2010',
+    freq:'2×/week per muscle', level:'Intermediate · Hypertrophy',
+    tags:['2×/week each muscle','Hypertrophy-optimal','Balanced recovery'],
+    schedule:[
+      {label:'Upper A (Strength bias)',   pri:['Chest','Back'],              sec:['Shoulders']},
+      {label:'Lower A (Strength bias)',   pri:['Legs','Posterior'],          sec:['Core']},
+      {label:'Upper B (Hypertrophy bias)',pri:['Chest','Back','Shoulders'],  sec:['Biceps','Triceps']},
+      {label:'Lower B (Hypertrophy bias)',pri:['Legs','Posterior'],          sec:['Core','Biceps']},
+    ]
+  },
+
+  'classic-4': {
+    name:'Classic 4-Day (Chest+Tri / Back+Bi / Shoulders / Legs)', days:4, icon:'⊕',
+    evidence:"The most popular gym split globally. Synergistic pairing: chest presses pre-fatigue triceps for dedicated tricep work; back rowing pre-fatigues biceps. Sousa et al. (2017) confirmed agonist pre-fatigue order produces comparable hypertrophy to reverse. One muscle group per day allows maximum per-session volume for each.",
+    ref:'Sousa et al. 2017 (J. Hum. Kinet.); Schoenfeld 2016 — matched-volume equivalence',
+    freq:'1×/week per muscle', level:'Intermediate · Classic bodybuilding',
+    tags:['Synergistic pairings','High volume/session','Bodybuilding standard'],
+    schedule:[
+      {label:'Chest + Triceps',  pri:['Chest','Triceps'],  sec:['Shoulders']},
+      {label:'Back + Biceps',    pri:['Back','Biceps'],    sec:['Posterior']},
+      {label:'Shoulders + Core', pri:['Shoulders'],        sec:['Triceps','Biceps','Core']},
+      {label:'Legs',             pri:['Legs','Posterior'], sec:['Core']},
+    ]
+  },
+
+  'phul-4': {
+    name:'PHUL — Power Hypertrophy Upper Lower', days:4, icon:'◧',
+    evidence:'Power Hypertrophy Upper Lower (Lilly/Norton). Two power days train 3–5 rep strength, two hypertrophy days train 8–12 rep range. Non-linear periodization within the microcycle — shown superior to linear for intermediate lifters. Simultaneously develops maximal strength and muscle size.',
+    ref:'Prestes et al. 2009 (JSCR); Miranda et al. 2011 (JSCR); Zourdos et al. 2016',
+    freq:'2×/week per muscle · 2 intensity zones', level:'Intermediate–Advanced · Periodization',
+    tags:['Strength + hypertrophy','Non-linear periodization','2× frequency'],
+    schedule:[
+      {label:'Upper Power',      pri:['Chest','Back','Shoulders'],           sec:['Biceps','Triceps'], mode:'strength'},
+      {label:'Lower Power',      pri:['Legs','Posterior'],                   sec:['Core'],             mode:'strength'},
+      {label:'Upper Hypertrophy',pri:['Chest','Back'],                       sec:['Shoulders','Biceps','Triceps'], mode:'hypertrophy'},
+      {label:'Lower Hypertrophy',pri:['Legs','Posterior'],                   sec:['Core'],             mode:'hypertrophy'},
+    ]
+  },
+
+  // ── 5-DAY ──────────────────────────────────────────────────────────
   'ul-5': {
-    name:'UL + Push/Pull/Legs (5-Day)', days:5, icon:'◎',
-    evidence:'Hybrid approach combining upper/lower frequency advantages with dedicated isolation days. Muscles hit 1.5–2×/week. Good balance for intermediate-to-advanced lifters seeking both strength and hypertrophy without 6-day commitment.',
+    name:'UL + Push / Pull / Legs (5-Day)', days:5, icon:'◎',
+    evidence:'Hybrid combining upper/lower frequency with dedicated isolation days. Muscles hit 1.5–2×/week. Good balance for intermediate-to-advanced lifters seeking both strength and hypertrophy without a 6-day commitment.',
     ref:'Hybrid of Lyle McDonald UL & PPL principles; Schoenfeld 2016',
     freq:'1.5–2×/week per muscle', level:'Intermediate–Advanced',
     tags:['Flexible frequency','Hybrid model','5-day'],
@@ -391,8 +476,71 @@ const SPLITS = {
       {label:'Lower B',  pri:['Legs','Posterior'],          sec:['Core','Biceps']},
     ]
   },
-};
 
+  'body-part-5': {
+    name:'Body Part Split 5-Day (Bro Split)', days:5, icon:'▦',
+    evidence:"One muscle group per session with maximum per-session volume. Schoenfeld's 2016 meta-analysis showed matched-volume body part splits produce comparable hypertrophy to higher-frequency programs. Best justified when advanced lifters need 15–25+ sets per muscle per week — volume that is only practical spread across a full session per muscle.",
+    ref:'Schoenfeld 2016 (Strength & Cond. J.) — matched volume equivalence; Colquhoun et al. 2018',
+    freq:'1×/week per muscle · Maximum volume/session', level:'Intermediate–Advanced · Physique',
+    tags:['Max volume/session','1 muscle per day','Physique-focused'],
+    schedule:[
+      {label:'Chest',     pri:['Chest'],             sec:['Triceps','Shoulders']},
+      {label:'Back',      pri:['Back'],              sec:['Biceps','Posterior']},
+      {label:'Shoulders', pri:['Shoulders'],         sec:['Triceps','Core']},
+      {label:'Arms',      pri:['Biceps','Triceps'],  sec:['Shoulders']},
+      {label:'Legs',      pri:['Legs','Posterior'],  sec:['Core']},
+    ]
+  },
+
+  'phat-5': {
+    name:'PHAT — Power Hypertrophy Adaptive Training', days:5, icon:'◩',
+    evidence:"Layne Norton's PHAT protocol. Two full-body power days (3–5 reps, compound-dominant) followed by three muscle-group hypertrophy days (8–15 reps, higher volume). Zourdos et al. (2016) confirmed that non-linear periodization within the week outperforms linear models for simultaneous strength and hypertrophy. Demanding — requires solid recovery capacity.",
+    ref:'Norton 2009 PHAT protocol; Zourdos et al. 2016 (JSCR); Miranda et al. 2011',
+    freq:'2×/week each muscle · 2 intensity zones', level:'Advanced · Strength + Hypertrophy',
+    tags:['Power + hyp days','Non-linear periodization','Advanced only'],
+    schedule:[
+      {label:'Upper Power',          pri:['Chest','Back','Shoulders'],  sec:['Biceps','Triceps'],  mode:'strength'},
+      {label:'Lower Power',          pri:['Legs','Posterior'],          sec:['Core'],              mode:'strength'},
+      {label:'Back + Shoulders Hyp', pri:['Back','Shoulders'],          sec:['Biceps'],            mode:'hypertrophy'},
+      {label:'Lower Hyp',            pri:['Legs','Posterior'],          sec:['Core'],              mode:'hypertrophy'},
+      {label:'Chest + Arms Hyp',     pri:['Chest','Triceps'],           sec:['Biceps','Shoulders'],mode:'hypertrophy'},
+    ]
+  },
+
+  // ── 6-DAY ──────────────────────────────────────────────────────────
+  'arnold-6': {
+    name:'Arnold Split 6-Day', days:6, icon:'⬣',
+    evidence:"Chest+Back/Shoulders+Arms/Legs repeated twice per week — a 2× frequency body part split. The antagonist pairing (chest+back) allows efficient supersets and high total volume. Schoenfeld et al. (2016) and Ralston et al. (2017) support 2×/week frequency. Very high overall volume — justified for advanced physique athletes.",
+    ref:'Schoenfeld et al. 2016; Ralston et al. 2017 (JSCR); Weakley et al. on antagonist efficiency',
+    freq:'2×/week per muscle · High volume', level:'Advanced · Bodybuilding',
+    tags:['2×/week each muscle','Antagonist pairs','High volume'],
+    schedule:[
+      {label:'Chest + Back A',      pri:['Chest','Back'],               sec:['Shoulders']},
+      {label:'Shoulders + Arms A',  pri:['Shoulders','Biceps','Triceps'],sec:['Chest']},
+      {label:'Legs A',              pri:['Legs','Posterior'],            sec:['Core']},
+      {label:'Chest + Back B',      pri:['Chest','Back'],               sec:['Shoulders']},
+      {label:'Shoulders + Arms B',  pri:['Shoulders','Biceps','Triceps'],sec:['Chest']},
+      {label:'Legs B',              pri:['Legs','Posterior'],            sec:['Core']},
+    ]
+  },
+
+  'ppl-6': {
+    name:'PPL 6×/week (RP-Style)', days:6, icon:'⬡',
+    evidence:'Renaissance Periodization model (Israetel). PPL repeated twice delivers 2×/week per muscle with high volume per session. Best for advanced lifters operating in their MAV (maximum adaptive volume) range. Not appropriate until MEV is well established.',
+    ref:'Israetel, Hoffmann & Case 2019 (RP Hypertrophy); Colquhoun 2018',
+    freq:'2×/week per muscle', level:'Advanced · High volume',
+    tags:['2×/week each muscle','RP-style','Advanced only'],
+    schedule:[
+      {label:'Push A', pri:['Chest','Shoulders'], sec:['Triceps']},
+      {label:'Pull A', pri:['Back'],              sec:['Biceps','Posterior']},
+      {label:'Legs A', pri:['Legs','Posterior'],  sec:['Core']},
+      {label:'Push B', pri:['Chest','Shoulders'], sec:['Triceps']},
+      {label:'Pull B', pri:['Back'],              sec:['Biceps']},
+      {label:'Legs B', pri:['Legs','Posterior'],  sec:['Core']},
+    ]
+  },
+
+};
 // =====================================================================
 // GENERATE EXERCISES FOR A DAY
 // Compound movements first, then accessories. Count varies by mode.
@@ -1239,34 +1387,50 @@ function rBStep2(){
 }
 
 function autoSelectSplit(){
-  const candidates=Object.entries(SPLITS).filter(([,s])=>s.days===S.bDays);
-  if(candidates.length>0)S.bSplit=candidates[0][0];
-}
 
 function rBStep3(){
-  const candidates=Object.entries(SPLITS).filter(([,s])=>s.days===S.bDays);
-  if(candidates.length===0)return`<div style="color:var(--txt2)">No splits for ${S.bDays} days.</div>`;
+  const entries=Object.entries(SPLITS);
+  const groups={};
+  entries.forEach(([k,sp])=>{const d=sp.days;if(!groups[d])groups[d]=[];groups[d].push([k,sp]);});
+  const dayNums=Object.keys(groups).map(Number).sort((a,b)=>a-b);
+  const hasMixed=sp=>sp.schedule.some(d=>d.mode&&d.mode!==sp.schedule[0].mode);
   return`
-<div class="sec-label">Choose Split — ${S.bDays} days/week</div>
-${candidates.map(([k,sp])=>`
-  <div class="split-card ${S.bSplit===k?'sel':''}" onclick="S.bSplit='${k}';render()">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:20px">${sp.icon}</span>
-      <div class="sc-name" style="margin-bottom:0;flex:1">${sp.name}</div>
-      ${S.bSplit===k?`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mode)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`:''}
-    </div>
-    <div class="sc-tags">
-      <span class="sc-tag hi">${sp.freq}</span>
-      <span class="sc-tag">${sp.level}</span>
-      ${sp.tags.map(t=>`<span class="sc-tag">${t}</span>`).join('')}
-    </div>
-    <div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-top:6px">${sp.evidence}</div>
-    <div style="font-size:10px;color:var(--txt3);margin-top:6px;font-style:italic">Ref: ${sp.ref}</div>
-    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px">
-      ${sp.schedule.map(d=>`<span style="font-size:11px;padding:3px 9px;border-radius:20px;
-        background:var(--bg2);color:var(--txt2);border:1px solid var(--border)">${d.label}</span>`).join('')}
-    </div>
-  </div>
+<div class="sec-label" style="margin-bottom:4px">Choose a program structure</div>
+<div style="font-size:12px;color:var(--txt3);margin-bottom:14px;line-height:1.5">
+  PHUL, PHAT, and DUP automatically apply per-day intensity — other splits use your Step 1 goal throughout.
+</div>
+${dayNums.map(d=>`
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin:${d===dayNums[0]?'0':'16px'} 0 8px;padding-bottom:6px;
+    border-bottom:1px solid var(--border)">${d}-Day Programs</div>
+  ${groups[d].map(([k,sp])=>{
+    const sel=S.bSplit===k;
+    const mixed=hasMixed(sp);
+    return`<div class="split-card ${sel?'sel':''}" onclick="S.bSplit='${k}';render()">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <span style="font-size:20px;flex-shrink:0;line-height:1.6">${sp.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;line-height:1.3;margin-bottom:4px">${sp.name}</div>
+          <div style="font-size:11px;color:var(--txt2);margin-bottom:7px">${sp.freq} · <span style="color:var(--txt3)">${sp.level}</span></div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+            ${sp.tags.map(t=>`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;
+              background:${sel?'var(--mode)':'var(--bg3)'};color:${sel?'#fff':'var(--txt3)'}">${t}</span>`).join('')}
+            ${mixed?`<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;
+              background:var(--bg3);color:var(--txt2)">Mixed intensity</span>`:''}
+          </div>
+          ${mixed?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            ${sp.schedule.map(d=>`<span style="font-size:10px;padding:2px 8px;border-radius:5px;font-weight:600;
+              background:${MODES[d.mode||'hypertrophy']?.c||'var(--mode)'}22;
+              color:${MODES[d.mode||'hypertrophy']?.c||'var(--mode)'}">
+              ${d.label}</span>`).join('')}
+          </div>`:''}
+          <div style="font-size:12px;color:var(--txt2);line-height:1.5">${sp.evidence}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:5px;font-style:italic">${sp.ref}</div>
+        </div>
+        ${sel?`<svg style="flex-shrink:0;margin-top:3px" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mode)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`:''}
+      </div>
+    </div>`;
+  }).join('')}
 `).join('')}
 <div style="display:flex;gap:10px;margin-top:20px">
   <button class="btn btn-s" style="flex:1;height:48px" onclick="S.bStep=2;render()">← Back</button>
@@ -1274,13 +1438,14 @@ ${candidates.map(([k,sp])=>`
 </div>`;
 }
 
-function buildPreview(){
+
   const sp=SPLITS[S.bSplit];
   S.bCollapsed=new Set(); // reset collapse state when preview is rebuilt
   S.bPreview=sp.schedule.map((day,i)=>{
-    const exIds=generateDayExercises(day.pri,day.sec||[],S.bGoal);
+    const dayMode=day.mode||S.bGoal;
+    const exIds=generateDayExercises(day.pri,day.sec||[],dayMode);
     const muscles=[...day.pri,...(day.sec||[])].join(', ');
-    return{id:`day-${S.bSplit}-${i}`,label:day.label,muscles,exIds,mode:S.bGoal,
+    return{id:`day-${S.bSplit}-${i}`,label:day.label,muscles,exIds,mode:dayMode,
       pri:day.pri,sec:day.sec||[]};
   });
 }
