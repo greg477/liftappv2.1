@@ -729,7 +729,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog)}
 
 // ---- Export / Import backup ----
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes'];
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -936,7 +936,7 @@ function startTimer(sec){
     timer.rem--;
     if(timer.rem<=0){
       clearInterval(timer.iv);timer.active=false;
-      vibrate([100,50,100]);
+      vibrate([100,50,100]);timerEndSound();
       S.screen='active';render();
     }else{updateTimerDisplay();}
   },1000);
@@ -3153,6 +3153,25 @@ const EX_INFO = {
     equip:'Bodyweight · Mat',
     desc:'Dead bug — supine anti-extension and contralateral coordination exercise. Trains deep core stability. Low injury risk; high value for lumbar health.',
     cues:['Flatten lower back into floor — maintain throughout','Opposite arm and leg extend simultaneously','Lower limb extends to just above floor; do not touch','Exhale on extension for increased intra-abdominal pressure']},
+  'bb-curl':  {pri:['Biceps'],sec:['Forearms'],
+    equip:'Barbell · Floor',
+    desc:'Bilateral barbell bicep curl. Allows heavier loading than dumbbells due to fixed grip. Supinated grip maximizes biceps short head recruitment. Avoid body English — strict form builds more bicep mass than cheat curls at equivalent RPE.',
+    cues:['Elbows pinned at sides throughout — do not let them drift forward','Squeeze peak contraction for 1 second at top','Eccentric: 2–3 second lower under control','Shoulder-width grip; narrower biases long head, wider biases short head','Wrists neutral — do not flex or hyperextend']},
+
+  'bb-gm':    {pri:['Posterior'],sec:['Back','Legs'],
+    equip:'Barbell · Rack',
+    desc:'Good morning — barbell on upper back, hip hinge to horizontal. Directly loads the spinal erectors, glutes, and hamstrings under a long moment arm. High technical demand and significant lumbar stress — use lighter loads than you think necessary. Builds posterior chain strength that transfers directly to deadlift and squat.',
+    cues:['Start light: the moment arm is long and stress accumulates fast','Slight knee bend — not a squat, but not locked','Hinge at the hip, maintaining neutral spine throughout','Depth limited by hamstring flexibility — do not round lumbar','Bar path stays over mid-foot; think "push hips back" not "bend forward"']},
+
+  'bb-skull': {pri:['Triceps'],sec:[],
+    equip:'Barbell or EZ-Bar · Bench',
+    desc:'Lying tricep extension (skull crusher). Bar lowered from arms-vertical to forehead or just behind the head, isolating all three triceps heads. EZ-bar reduces wrist stress versus straight bar. The long head is maximally stretched in the lowered position, making this one of the most effective tricep mass exercises.',
+    cues:['Upper arms vertical and stationary — only forearms move','Lower to forehead (skull) or slightly behind for greater long-head stretch','Extend fully at top — squeeze triceps hard at lockout','Use EZ-bar if straight bar causes wrist discomfort','Controlled descent — 2s eccentric; explode on extension']},
+
+  'db-po':    {pri:['Back'],sec:['Chest','Shoulders'],
+    equip:'Dumbbell · Bench',
+    desc:'Dumbbell pullover — arc from overhead to hip level, loading the lats through their full range. Also stretches the pec major and long head of triceps. A unique exercise in that it targets the lats in a lengthened overhead position that most pulling exercises do not reach. Particularly useful for lat width development.',
+    cues:['Slight elbow bend (10–15°) maintained throughout — do not let elbows splay','Initiate with the lat: think about pulling your elbows toward your hips','Full overhead stretch: feel the lat elongate at the start position','Keep hips down on the bench — resist lumbar extension','Controlled arc; avoid using momentum from shoulder flexion']},
 };
 
 // =====================================================================
