@@ -221,6 +221,24 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 .ob-dots{display:flex;gap:8px;justify-content:center;padding:16px 0}
 .ob-dot{width:8px;height:8px;border-radius:50%;background:#333;transition:background .2s}
 .ob-dot.sel{background:var(--red)}
+
+/* Weight prompt modal */
+#wt-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.wt-card{background:var(--bg2);border:1px solid var(--border2);border-radius:18px;
+  padding:28px 24px;width:100%;max-width:340px;text-align:center}
+.wt-card h2{font-size:20px;font-weight:800;margin-bottom:8px}
+.wt-card p{font-size:13px;color:var(--txt2);line-height:1.6;margin-bottom:20px}
+.wt-card input{width:100%;background:var(--bg3);border:1px solid var(--border2);
+  color:var(--txt);font-size:28px;font-weight:700;text-align:center;
+  padding:14px 0;border-radius:10px;outline:none;margin-bottom:16px;
+  font-family:inherit;box-sizing:border-box}
+/* Lardass modal */
+.lard-card{text-align:center}
+.lard-emoji{font-size:72px;margin-bottom:12px}
+.lard-title{font-size:22px;font-weight:900;color:var(--red);margin-bottom:8px;
+  font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.1em;font-style:italic}
+.lard-sub{font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:22px}
 </style>
 </head>
 <body>
@@ -259,10 +277,30 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
       <br><br>Weekly volume targets keep you in the optimal training zone.
     </div>
   </div>
+  <div class="ob-slide" id="ob-3" style="display:none">
+    <div class="ob-icon"><img id="ob-logo-3" alt="Lift"></div>
+    <div class="ob-title">Track Your Weight?</div>
+    <div class="ob-body">
+      Get prompted to log your bodyweight at the start of each workout.
+      Your weight is plotted in the Progress screen alongside your training data.
+      <br><br>You can always change this in settings later.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px;margin-top:8px">
+      <button id="ob-wt-yes" class="btn btn-p" style="height:48px;font-size:15px;font-weight:700">
+        Yes — track my weight
+      </button>
+      <button id="ob-wt-no"
+        style="background:none;border:1px solid #333;color:#666;height:44px;
+        border-radius:10px;font-size:13px;cursor:pointer">
+        Skip weight tracking
+      </button>
+    </div>
+  </div>
   <div class="ob-dots">
     <div class="ob-dot sel" id="ob-dot-0"></div>
     <div class="ob-dot" id="ob-dot-1"></div>
     <div class="ob-dot" id="ob-dot-2"></div>
+    <div class="ob-dot" id="ob-dot-3"></div>
   </div>
   <div style="padding:0 24px calc(32px + env(safe-area-inset-bottom));display:flex;gap:10px">
     <button id="ob-skip-btn"
@@ -272,6 +310,11 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
     <button id="ob-next-btn" class="btn btn-p" style="flex:1;height:52px;font-size:16px">
       Next →
     </button>
+  </div>
+</div>
+<div id="wt-modal" style="display:none">
+  <div class="wt-card" id="wt-card-inner">
+    <!-- content set by JS -->
   </div>
 </div>
 <div id="app">
@@ -866,11 +909,11 @@ let elapsedIv=null,wStart=null;
 let _obStep=0;
 function showOnboarding(){
   document.getElementById('onboard').style.display='flex';
-  // Mirror splash logo into onboarding slides
   const src=(document.querySelector('#splash img')||{}).src||'';
-  ['ob-logo-0','ob-logo-1','ob-logo-2'].forEach(id=>{
+  ['ob-logo-0','ob-logo-1','ob-logo-2','ob-logo-3'].forEach(id=>{
     const el=document.getElementById(id);if(el&&src)el.src=src;
   });
+  // Next button: advance slides 0→1→2, then on 2 show weight-tracking slide 3
   document.getElementById('ob-next-btn').addEventListener('click',()=>{
     if(_obStep<2){
       document.getElementById('ob-'+_obStep).style.display='none';
@@ -879,15 +922,105 @@ function showOnboarding(){
       document.getElementById('ob-'+_obStep).style.display='flex';
       document.getElementById('ob-dot-'+_obStep).classList.add('sel');
       if(_obStep===2)document.getElementById('ob-next-btn').textContent='Get Started ✓';
-    }else{dismissOnboarding();}
+    }else{
+      // Step 2 → step 3 (weight tracking choice — hides Next/Skip, shows own buttons)
+      document.getElementById('ob-'+_obStep).style.display='none';
+      document.getElementById('ob-dot-'+_obStep).classList.remove('sel');
+      _obStep=3;
+      document.getElementById('ob-3').style.display='flex';
+      document.getElementById('ob-dot-3').classList.add('sel');
+      // Hide the footer buttons — slide 3 has its own Yes/No
+      document.getElementById('ob-next-btn').style.display='none';
+      document.getElementById('ob-skip-btn').style.display='none';
+    }
   });
   document.getElementById('ob-skip-btn').addEventListener('click',dismissOnboarding);
+  // Weight tracking Yes/No buttons
+  document.getElementById('ob-wt-yes').addEventListener('click',()=>{
+    savePrefs({trackWeight:true});
+    dismissOnboarding();
+  });
+  document.getElementById('ob-wt-no').addEventListener('click',()=>{
+    savePrefs({trackWeight:false});
+    dismissOnboarding();
+  });
 }
 function dismissOnboarding(){
   LS.set('lift_onboarded',true);
   const el=document.getElementById('onboard');if(el)el.style.display='none';
   // Route to builder if no program, otherwise home
   if(!getActiveProgram()){S.screen='builder';render();}
+}
+
+// ── Weight Tracking Prompt ────────────────────────────────────────────
+function showWeightPrompt(onDone){
+  const modal=document.getElementById('wt-modal');
+  const card=document.getElementById('wt-card-inner');
+  const log=getBW();
+  const last=log[0]?log[0].w:null;
+
+  card.innerHTML=`
+    <h2>Today's Weight</h2>
+    <p>${last?`Last logged: <strong style="color:var(--txt)">${last} lbs</strong>`:'First weigh-in — log your starting weight.'}</p>
+    <input type="number" id="wt-input" placeholder="${last||185}" step="0.5" min="50" max="500"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+      color:var(--txt);font-size:28px;font-weight:700;text-align:center;
+      padding:14px 0;border-radius:10px;outline:none;margin-bottom:16px;
+      font-family:inherit;box-sizing:border-box">
+    <button class="btn btn-p" style="width:100%;height:50px;font-size:16px;font-weight:700;margin-bottom:10px"
+      onclick="submitWeightPrompt(${last},()=>{${''}})" id="wt-submit-btn">Log & Start Workout</button>
+    <button onclick="closeWeightModal();_wptDone&&_wptDone();"
+      style="background:none;border:none;color:#444;font-size:12px;cursor:pointer;width:100%;padding:6px">
+      Skip today
+    </button>`;
+
+  // Store callback
+  window._wptDone=onDone;
+  // Wire submit button properly
+  document.getElementById('wt-submit-btn').onclick=()=>submitWeightPrompt(last,onDone);
+  // Also allow Enter key
+  setTimeout(()=>{
+    const inp=document.getElementById('wt-input');
+    if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitWeightPrompt(last,onDone);});}
+  },120);
+  modal.style.display='flex';
+}
+
+function submitWeightPrompt(lastW,onDone){
+  const inp=document.getElementById('wt-input');
+  const v=parseFloat(inp?.value);
+  if(!v||v<50||v>500){if(inp)inp.focus();return;}
+  logBW(v);
+  closeWeightModal();
+  if(lastW&&v>lastW){
+    showLardassModal(lastW,v,onDone);
+  }else{
+    onDone();
+  }
+}
+
+function closeWeightModal(){
+  const m=document.getElementById('wt-modal');if(m)m.style.display='none';
+}
+
+function showLardassModal(lastW,newW,onDone){
+  const modal=document.getElementById('wt-modal');
+  const card=document.getElementById('wt-card-inner');
+  const diff=(newW-lastW).toFixed(1);
+  card.innerHTML=`
+    <div class="lard-card">
+      <div class="lard-emoji">🎂</div>
+      <div class="lard-title">Way to go lardass</div>
+      <div class="lard-sub">
+        +${diff} lbs since last weigh-in.<br>
+        <em>Don't worry, beauty comes in every size,<br>just not yours.</em>
+      </div>
+      <button class="btn btn-p" style="width:100%;height:50px;font-size:15px;font-weight:700"
+        onclick="closeWeightModal();window._wptDone&&window._wptDone()">
+        Let's burn it off 🔥
+      </button>
+    </div>`;
+  modal.style.display='flex';
 }
 
 // ── Sound Feedback ───────────────────────────────────────────────────
@@ -1007,7 +1140,13 @@ function startWorkout(dayIdx){
   elapsedIv=setInterval(()=>{const e=document.getElementById('w-elapsed');if(e)e.textContent=fmtElapsed();},1000);
   document.getElementById('nb-active').style.display='';
   _acquireWakeLock();
-  S.screen='active';render();
+  // Weight tracking prompt — shown before workout if enabled
+  if(getPrefs().trackWeight){
+    S.screen='active';render();  // render workout screen first
+    showWeightPrompt(()=>{});    // then layer modal on top
+  }else{
+    S.screen='active';render();
+  }
 }
 
 function curSet(){if(!S.workout)return null;return S.workout.sets[S.workout.ei][S.workout.si];}
@@ -2441,6 +2580,29 @@ function logBW(w){
   log.unshift({date:Date.now(),w:+w});
   LS.set('lift_bw',log.slice(0,90)); // keep 90 days
 }
+function bwSparkline(entries){
+  if(entries.length<2)return'';
+  const ws=entries.map(e=>e.w);
+  const min=Math.min(...ws),max=Math.max(...ws),range=max-min||1;
+  const W=260,H=44,pad=4;
+  const pts=ws.map((w,i)=>{
+    const x=pad+i*(W-pad*2)/(ws.length-1);
+    const y=H-pad-(w-min)/(range)*(H-pad*2);
+    return`${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const first=ws[0],last=ws[ws.length-1];
+  const trend=last>=first?'#f87171':'#4ade80';
+  return`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block">
+    <polyline points="${pts}" fill="none" stroke="${trend}" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/>
+    ${ws.map((w,i)=>{
+      const x=pad+i*(W-pad*2)/(ws.length-1);
+      const y=H-pad-(w-min)/(range)*(H-pad*2);
+      return`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${trend}"/>`;
+    }).join('')}
+  </svg>`;
+}
+
 function rBodyWeightCard(){
   const log=getBW();
   const latest=log[0];
@@ -2457,6 +2619,7 @@ function rBodyWeightCard(){
           margin-left:6px">${delta>0?'+':''}${delta}</span>`:''}
       </div>`:`<div style="font-size:13px;color:var(--txt3)">Not logged</div>`}
     </div>
+    ${log.length>2?`<div style="margin-bottom:10px">${bwSparkline(log.slice(0,14).reverse())}</div>`:''}
     ${log.length>1?`<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:10px">
       ${log.slice(0,7).reverse().map(e=>`
         <div style="flex-shrink:0;text-align:center;min-width:38px">
