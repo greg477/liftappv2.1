@@ -239,6 +239,20 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 .lard-title{font-size:22px;font-weight:900;color:var(--red);margin-bottom:8px;
   font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.1em;font-style:italic}
 .lard-sub{font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:22px}
+
+/* Settings screen */
+.settings-row{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-label{font-size:14px;font-weight:600}
+.settings-sub{font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.4}
+.toggle{position:relative;width:44px;height:26px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:var(--bg3);border-radius:13px;
+  border:1px solid var(--border2);transition:background .2s}
+.toggle input:checked+.toggle-track{background:var(--red)}
+.toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;
+  background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
+.toggle input:checked~.toggle-thumb{transform:translateX(18px)}
 </style>
 </head>
 <body>
@@ -747,8 +761,17 @@ const LS = {
 };
 // HTML escape for any user-controlled string before innerHTML injection
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
-function getHistory(){return LS.get('lift_hist')||[]}
-function saveHistory(h){LS.set('lift_hist',h)}
+// History cache — avoids repeated JSON.parse on every progress render
+let _histCache=null;
+function getHistory(){
+  if(_histCache)return _histCache;
+  _histCache=LS.get('lift_hist')||[];
+  return _histCache;
+}
+function saveHistory(h){
+  _histCache=h.slice(0,500); // invalidate cache, cap at 500 entries (~2 yrs daily)
+  LS.set('lift_hist',_histCache);
+}
 function getWeights(){return LS.get('lift_wts')||{}}
 function saveWeight(id,w){const wts=getWeights();wts[id]=w;LS.set('lift_wts',wts)}
 function getPrefs(){return LS.get('lift_pref')||{}}
@@ -756,15 +779,13 @@ function savePrefs(p){LS.set('lift_pref',{...getPrefs(),...p})}
 
 // Persist in-progress workout so tab close / reload doesn't lose it
 function saveWorkoutState(){
-  if(S.workout){LS.set('lift_wip',{...S.workout,_wStart:wStart});}
+  if(S.workout){LS.set('lift_wip',S.workout);}
   else{LS.set('lift_wip',null);}
 }
 function loadWorkoutState(){
   const w=LS.get('lift_wip');
   if(!w)return;
-  const{_wStart,...rest}=w;
-  S.workout=rest;
-  wStart=_wStart||Date.now();
+  S.workout=w;
 }
 
 // Active program: array of {id, label, exIds, mode}
@@ -886,7 +907,8 @@ function checkAutoProgression(exId, sets, mode){
   const finalSet=done[done.length-1];
   const threshold=PROG_THRESHOLDS[mode];
   if(threshold===undefined||finalSet.reps<threshold)return null;
-  const newW=+(finalSet.w+5).toFixed(1);
+  const incr=getPrefs().incrLbs||5;
+  const newW=+(finalSet.w+incr).toFixed(1);
   saveWeight(exId,newW);
   const sugg=getWeightSuggestions();
   delete sugg[exId];
@@ -904,7 +926,7 @@ function dismissSuggestion(exId){
 // TIMER
 // =====================================================================
 let timer={active:false,rem:0,total:0,iv:null};
-let elapsedIv=null,wStart=null;
+let elapsedIv=null,_activeWtCb=null; // weight prompt callback
 // ── First-time Onboarding ─────────────────────────────────────────────
 let _obStep=0;
 function showOnboarding(){
@@ -958,6 +980,8 @@ function showWeightPrompt(onDone){
   const card=document.getElementById('wt-card-inner');
   const log=getBW();
   const last=log[0]?log[0].w:null;
+  // Store callback at module scope — no window pollution
+  _activeWtCb=onDone||null;
 
   card.innerHTML=`
     <h2>Today's Weight</h2>
@@ -967,43 +991,46 @@ function showWeightPrompt(onDone){
       color:var(--txt);font-size:28px;font-weight:700;text-align:center;
       padding:14px 0;border-radius:10px;outline:none;margin-bottom:16px;
       font-family:inherit;box-sizing:border-box">
-    <button class="btn btn-p" style="width:100%;height:50px;font-size:16px;font-weight:700;margin-bottom:10px"
-      onclick="submitWeightPrompt(${last},()=>{${''}})" id="wt-submit-btn">Log & Start Workout</button>
-    <button onclick="closeWeightModal();_wptDone&&_wptDone();"
+    <button id="wt-submit-btn" class="btn btn-p"
+      style="width:100%;height:50px;font-size:16px;font-weight:700;margin-bottom:10px">
+      Log &amp; Start Workout
+    </button>
+    <button onclick="closeWeightModal(true)"
       style="background:none;border:none;color:#444;font-size:12px;cursor:pointer;width:100%;padding:6px">
       Skip today
     </button>`;
 
-  // Store callback
-  window._wptDone=onDone;
-  // Wire submit button properly
-  document.getElementById('wt-submit-btn').onclick=()=>submitWeightPrompt(last,onDone);
-  // Also allow Enter key
+  // Wire submit via JS — no inline onclick
+  const btn=document.getElementById('wt-submit-btn');
+  if(btn)btn.addEventListener('click',()=>submitWeightPrompt(last));
+  // Enter key
   setTimeout(()=>{
     const inp=document.getElementById('wt-input');
-    if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitWeightPrompt(last,onDone);});}
+    if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitWeightPrompt(last);});}
   },120);
   modal.style.display='flex';
 }
 
-function submitWeightPrompt(lastW,onDone){
+function submitWeightPrompt(lastW){
   const inp=document.getElementById('wt-input');
   const v=parseFloat(inp?.value);
   if(!v||v<50||v>500){if(inp)inp.focus();return;}
   logBW(v);
-  closeWeightModal();
+  closeWeightModal(false);  // false = don't call cb yet (may show lardass modal)
   if(lastW&&v>lastW){
-    showLardassModal(lastW,v,onDone);
+    showLardassModal(lastW,v);
   }else{
-    onDone();
+    if(_activeWtCb)_activeWtCb();
+    _activeWtCb=null;
   }
 }
 
-function closeWeightModal(){
+function closeWeightModal(runCb=false){
   const m=document.getElementById('wt-modal');if(m)m.style.display='none';
+  if(runCb&&_activeWtCb){_activeWtCb();_activeWtCb=null;}
 }
 
-function showLardassModal(lastW,newW,onDone){
+function showLardassModal(lastW,newW){
   const modal=document.getElementById('wt-modal');
   const card=document.getElementById('wt-card-inner');
   const diff=(newW-lastW).toFixed(1);
@@ -1016,7 +1043,7 @@ function showLardassModal(lastW,newW,onDone){
         <em>Don't worry, beauty comes in every size,<br>just not yours.</em>
       </div>
       <button class="btn btn-p" style="width:100%;height:50px;font-size:15px;font-weight:700"
-        onclick="closeWeightModal();window._wptDone&&window._wptDone()">
+        onclick="closeWeightModal(true)">
         Let's burn it off 🔥
       </button>
     </div>`;
@@ -1089,7 +1116,7 @@ function updateTimerDisplay(){
   if(f){const R=90,circ=2*Math.PI*R;const pct=timer.rem/timer.total;f.style.strokeDashoffset=circ*(1-pct);}
 }
 function fmtTime(s){const m=Math.floor(s/60),r=s%60;return m>0?`${m}:${String(r).padStart(2,'0')}`:String(s);}
-function fmtElapsed(){if(!wStart)return'0:00';const s=Math.floor((Date.now()-wStart)/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+function fmtElapsed(){const t=S.workout?.startTime;if(!t)return'0:00';const s=Math.floor((Date.now()-t)/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
 function vibrate(p){try{navigator.vibrate&&navigator.vibrate(p);}catch{}}
 
 // =====================================================================
@@ -1134,19 +1161,14 @@ function startWorkout(dayIdx){
     ei:0,si:0,
     progressions:[]   // collects auto-progression events during this workout
   };
-  wStart=Date.now();
   saveWorkoutState();
   clearInterval(elapsedIv);
   elapsedIv=setInterval(()=>{const e=document.getElementById('w-elapsed');if(e)e.textContent=fmtElapsed();},1000);
   document.getElementById('nb-active').style.display='';
   _acquireWakeLock();
-  // Weight tracking prompt — shown before workout if enabled
-  if(getPrefs().trackWeight){
-    S.screen='active';render();  // render workout screen first
-    showWeightPrompt(()=>{});    // then layer modal on top
-  }else{
-    S.screen='active';render();
-  }
+  S.screen='active';render();
+  // Weight tracking prompt layers over workout screen if enabled
+  if(getPrefs().trackWeight)showWeightPrompt(null);
 }
 
 function curSet(){if(!S.workout)return null;return S.workout.sets[S.workout.ei][S.workout.si];}
@@ -1527,6 +1549,7 @@ function render(){
     case'progress':  sc.innerHTML=rProgress();if(S.progView!=='volume')initChart();break;
     case'swap':      sc.innerHTML=rSwap();break;
     case'addEx':     sc.innerHTML=rAddEx();break;
+    case'settings':   sc.innerHTML=rSettings();break;
   }
   if(S.screen==='timer'){
     const R=90,circ=2*Math.PI*R;
@@ -1544,10 +1567,17 @@ function rHome(){
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   if(!ap){
     return`
-<div class="page-head"><div style="text-align:center;width:100%">
-  <div class="page-title lift-wordmark"><span>LIFT</span></div>
-  <div class="page-sub">${today}</div>
-</div></div>
+<div class="page-head" style="display:flex;align-items:center;justify-content:space-between">
+  <div style="width:36px"></div>
+  <div style="text-align:center">
+    <div class="page-title lift-wordmark"><span>LIFT</span></div>
+    <div class="page-sub">${today}</div>
+  </div>
+  <button onclick="S.screen='settings';render()"
+    style="background:none;border:none;color:var(--txt3);cursor:pointer;
+    width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+    font-size:20px">&#9881;</button>
+</div>
 <div style="padding:0 16px">
   <div style="background:var(--bg1);border:1.5px dashed var(--border2);border-radius:14px;
     padding:32px 24px;text-align:center;margin-bottom:16px">
@@ -1565,7 +1595,8 @@ function rHome(){
   const mode=ap[S.activeDayIdx]?.mode||S.mode;
 
   return`
-<div class="page-head" style="justify-content:center">
+<div class="page-head" style="justify-content:space-between;align-items:center;padding:16px 16px 10px">
+  <div style="width:36px"></div>
   <div style="text-align:center">
     <div class="page-title lift-wordmark"><span>LIFT</span></div>
     <div class="page-sub">${today}</div>
@@ -3485,6 +3516,108 @@ function screenWordmark(){
   </div>`;
 }
 
+
+function rSettings(){
+  const p=getPrefs();
+  const hist=getHistory();
+  const bw=getBW();
+  return`
+<div class="page-head" style="justify-content:flex-start;align-items:center;gap:12px">
+  <button onclick="S.screen='home';render()"
+    style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer">‹</button>
+  <div class="page-title"><span>SETTINGS</span></div>
+</div>
+<div style="padding:0 16px 30px">
+
+  <!-- TRAINING PREFERENCES -->
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin-bottom:10px">Training</div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Progression increment</div>
+      <div class="settings-sub">Weight added when you hit the top of your rep range</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      ${[2.5,5,10].map(v=>`
+        <button onclick="savePrefs({incrLbs:${v}});render()"
+          style="padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+          border:1.5px solid ${(p.incrLbs||5)===v?'var(--red)':'var(--border2)'};
+          background:${(p.incrLbs||5)===v?'var(--red)22':'var(--bg2)'};
+          color:${(p.incrLbs||5)===v?'var(--red)':'var(--txt3)'}">${v} lbs</button>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Daily weight tracking</div>
+      <div class="settings-sub">Prompt for body weight at each workout start</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" ${p.trackWeight?'checked':''} onchange="savePrefs({trackWeight:this.checked})">
+      <div class="toggle-track"></div>
+      <div class="toggle-thumb"></div>
+    </label>
+  </div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Timer sound</div>
+      <div class="settings-sub">Plays 3 ascending tones when rest timer ends</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" ${p.soundOn?'checked':''} onchange="savePrefs({soundOn:this.checked})">
+      <div class="toggle-track"></div>
+      <div class="toggle-thumb"></div>
+    </label>
+  </div>
+
+  <!-- DATA -->
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin:20px 0 10px">Data</div>
+
+  <div class="settings-row" style="border:none">
+    <div>
+      <div class="settings-label">Workout history</div>
+      <div class="settings-sub">${hist.length} session${hist.length!==1?'s':''} logged · ${bw.length} weight entr${bw.length!==1?'ies':'y'}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="exportBackup()"
+        style="background:none;border:1px solid var(--border2);color:var(--txt2);
+        padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer">Export</button>
+      <label style="background:none;border:1px solid var(--border2);color:var(--txt2);
+        padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer">
+        Import<input type="file" accept=".json" onchange="importBackup(event)" style="display:none">
+      </label>
+    </div>
+  </div>
+
+  <button onclick="if(confirm('Clear ALL workout history, weights, and settings? This cannot be undone.')){clearAllData()}"
+    style="width:100%;margin-top:14px;padding:13px;border-radius:10px;border:1.5px solid #3a1010;
+    background:#1a0808;color:#e22020;font-size:13px;font-weight:700;cursor:pointer">
+    Clear All Data
+  </button>
+
+  <!-- ABOUT -->
+  <div style="margin-top:28px;text-align:center;font-size:11px;color:#333;line-height:1.8">
+    <div style="font-family:'Bebas Neue',Impact,sans-serif;font-style:italic;
+      letter-spacing:.14em;font-size:18px;color:#222;margin-bottom:4px">LIFT</div>
+    Evidence-based training tracker<br>
+    Rep ranges · Israetel volume targets · Epley 1RM<br>
+    Auto-progression · 16 programs · Custom splits
+  </div>
+</div>`;
+}
+
+function clearAllData(){
+  BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
+  localStorage.removeItem('lift_onboarded');
+  S.workout=null;S.screen='home';
+  Object.assign(S,{activeDayIdx:0,progEx:null,progView:'chart',customDays:[],
+    bStep:1,bGoal:'hypertrophy',bDays:4,bSplit:'upper-lower-4',bPreview:null});
+  render();
+}
 
   // Register service worker for offline-first caching
   if('serviceWorker' in navigator){
