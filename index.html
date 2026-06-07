@@ -253,6 +253,12 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 .toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;
   background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
 .toggle input:checked~.toggle-thumb{transform:translateX(18px)}
+
+/* Day card swap mode */
+.day-card.swapping{border-color:var(--mode)!important;opacity:1}
+.day-card.swap-target{border-style:dashed;border-color:var(--mode);
+  cursor:pointer;opacity:.85}
+.day-card.swap-target:hover{opacity:1;background:var(--bg2)}
 </style>
 </head>
 <body>
@@ -737,6 +743,7 @@ let S = {
   swapDayIdx:0,        // used for 'builder' context: which preview day
   bCollapsed:new Set(), // collapsed day indices in builder preview
   customDays:[],        // [{name,exIds,mode}] for custom split builder
+  swapDayIdx:null,      // day index being repositioned in the rotation
   customDayCount:3,     // number of custom days
   customEditDayIdx:0,   // which day is being edited
   customMgFilter:'All', // muscle group filter in custom exercise picker
@@ -1620,23 +1627,52 @@ function rHome(){
       color:var(--txt3);cursor:pointer;text-decoration:underline">Edit program</button>
   </div>
 
-  ${ap.map((day,i)=>`
-    <div class="day-card ${S.activeDayIdx===i?'sel':''}" onclick="S.activeDayIdx=${i};render()">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div>
-          <div style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+  ${ap.map((day,i)=>{
+    const isSelected=S.activeDayIdx===i;
+    const isSwapping=S.swapDayIdx===i;
+    const swapPending=S.swapDayIdx!==null;
+    const isTarget=swapPending&&!isSwapping;
+    const modeC=MODES[day.mode||S.mode]?.c||'var(--mode)';
+    return`
+    <div class="day-card ${isSwapping?'swapping':isTarget?'swap-target':isSelected?'sel':''}"
+      onclick="${isTarget?`swapProgramDays(${S.swapDayIdx},${i})`:`S.activeDayIdx=${i};S.swapDayIdx=null;render()`}"
+      style="${isSwapping?`border-color:${modeC};box-shadow:0 0 0 2px ${modeC}44`:''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             ${day.label}
-            ${i===S.activeDayIdx&&getHistory()[0]?.day!==day.id?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--mode);color:#fff;letter-spacing:.06em">UP NEXT</span>`:''}
+            ${isSwapping?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:${modeC};color:#fff;letter-spacing:.06em">MOVING</span>`:''}
+            ${!swapPending&&i===S.activeDayIdx&&getHistory()[0]?.day!==day.id?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--mode);color:#fff;letter-spacing:.06em">UP NEXT</span>`:''}
+            ${isTarget?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid ${modeC};color:${modeC};letter-spacing:.06em">TAP TO SWAP</span>`:''}
           </div>
           <div style="font-size:11px;color:var(--txt2);margin-top:3px">${day.muscles||''}</div>
         </div>
-        <span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;
-          background:${MODES[day.mode||S.mode].c}22;color:${MODES[day.mode||S.mode].c}">
-          ${MODES[day.mode||S.mode].n}
-        </span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;
+            background:${modeC}22;color:${modeC}">
+            ${MODES[day.mode||S.mode]?.n||''}
+          </span>
+          ${!swapPending?`<button
+            onclick="event.stopPropagation();S.swapDayIdx=${i};render()"
+            title="Reorder this day"
+            style="background:none;border:1px solid var(--border2);color:var(--txt3);
+            width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:14px;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0">&#8645;</button>`:''}
+        </div>
       </div>
+    </div>`;
+  }).join('')}
+  ${S.swapDayIdx!==null?`
+  <div style="display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;background:var(--bg2);border:1px solid var(--border2);
+    border-radius:10px;margin-bottom:4px">
+    <div style="font-size:12px;color:var(--txt2)">
+      Moving <strong style="color:var(--txt)">${ap[S.swapDayIdx]?.label}</strong> — tap another day to swap positions
     </div>
-  `).join('')}
+    <button onclick="S.swapDayIdx=null;render()"
+      style="background:none;border:none;color:var(--txt3);font-size:12px;
+      cursor:pointer;padding:4px 8px">Cancel</button>
+  </div>`:``}
 
   <!-- Today's exercises for selected day -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px">
@@ -3452,6 +3488,21 @@ function removeExInfo() {
 // =====================================================================
 // NAV + INIT
 // =====================================================================
+// ── Day rotation swap ─────────────────────────────────────────────────
+function swapProgramDays(a,b){
+  const prog=getActiveProgram();
+  if(!prog||a===b){S.swapDayIdx=null;render();return;}
+  // Swap the two day objects in place — custom exercise overrides follow
+  // because they're keyed by day.id which travels with the object
+  [prog[a],prog[b]]=[prog[b],prog[a]];
+  saveActiveProgram(prog);
+  // Keep activeDayIdx pointing to the same logical day
+  if(S.activeDayIdx===a)S.activeDayIdx=b;
+  else if(S.activeDayIdx===b)S.activeDayIdx=a;
+  S.swapDayIdx=null;
+  render();
+}
+
 function smartSelectDay(){
   const ap=getActiveProgram();if(!ap||ap.length===0)return;
   const h=getHistory();
