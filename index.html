@@ -76,9 +76,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 .sdot
 
 .rpe-scale{display:flex;gap:4px}
-.rpe-btn{flex:1;height:44px;background:var(--bg2);border:1px solid var(--border);
-  border-radius:7px;color:var(--txt2);font-size:13px;font-weight:600;cursor:pointer;transition:all .1s}
+.rpe-btn{flex:1;height:64px;background:var(--bg2);border:2px solid var(--border2);
+  border-radius:10px;color:var(--txt);font-size:20px;font-weight:800;cursor:pointer;
+  transition:all .15s;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;line-height:1}
 .rpe-btn.sel{background:var(--mode);color:#fff;border-color:var(--mode)}
+.rpe-btn .rpe-zone{font-size:8px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.6}
+.rpe-btn[data-rpe="5"]{border-color:#22c55e44}
+.rpe-btn[data-rpe="6"]{border-color:#4ade8033}
+.rpe-btn[data-rpe="7"]{border-color:#facc1533}
+.rpe-btn[data-rpe="8"]{border-color:#fb923c33}
+.rpe-btn[data-rpe="9"]{border-color:#f8717133}
+.rpe-btn[data-rpe="10"]{border-color:#e2202033}
+.rpe-btn.sel[data-rpe="5"],.rpe-btn.sel[data-rpe="6"]{background:#22c55e;border-color:#22c55e;color:#000}
+.rpe-btn.sel[data-rpe="7"],.rpe-btn.sel[data-rpe="8"]{background:#f59e0b;border-color:#f59e0b;color:#000}
+.rpe-btn.sel[data-rpe="9"],.rpe-btn.sel[data-rpe="10"]{background:#e22020;border-color:#e22020;color:#fff}
 .timer-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:40px 24px;min-height:calc(100vh - var(--nav) - 160px)}
 .t-ring{position:relative;width:200px;height:200px;margin-bottom:24px}
@@ -152,8 +164,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 
 .sc-tag
 .days-grid{display:flex;gap:8px;margin-bottom:20px}
-.day-btn{flex:1;height:52px;border-radius:10px;background:var(--bg2);border:2px solid var(--border2);
-  color:var(--txt);font-size:18px;font-weight:700;cursor:pointer;transition:all .15s}
+.day-btn{flex:1;min-height:72px;border-radius:12px;background:var(--bg2);border:2px solid var(--border2);
+  color:var(--txt);font-size:22px;font-weight:800;cursor:pointer;transition:all .15s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px}
+.day-btn .day-lbl{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--txt3);line-height:1}
+.day-btn.sel .day-lbl{color:rgba(255,255,255,.7)}
 .day-btn.sel{background:var(--mode);border-color:var(--mode);color:#fff}
 .step-bar{display:flex;gap:6px;padding:0 16px 16px}
 .step-dot{flex:1;height:3px;border-radius:2px;background:var(--border2);transition:background .3s}
@@ -1766,8 +1782,14 @@ function rBStep2(){
   return`
 <div class="sec-label">Days per week</div>
 <div class="days-grid" style="margin-bottom:24px">
-  ${[2,3,4,5,6].map(d=>`
-    <button class="day-btn ${S.bDays===d?'sel':''}" onclick="S.bDays=${d};autoSelectSplit();render()">${d}</button>
+  ${[
+    [2,'Minimal'],[3,'Classic'],[4,'Optimal'],[5,'Advanced'],[6,'High vol']
+  ].map(([d,lbl])=>`
+    <button class="day-btn ${S.bDays===d?'sel':''}"
+      onclick="S.bDays=${d};autoSelectSplit();S.bStep=3;render();requestAnimationFrame(()=>scrollToDaySection(${d}))">
+      <span>${d}</span>
+      <span class="day-lbl">${lbl}</span>
+    </button>
   `).join('')}
 </div>
 <div class="sec-label">Research context</div>
@@ -1799,6 +1821,19 @@ function autoSelectSplit(){
   const match = order.find(k => SPLITS[k]) ||
     Object.keys(SPLITS).find(k => SPLITS[k].days === S.bDays);
   if(match) S.bSplit = match;
+}
+
+function scrollToDaySection(days){
+  // Give the DOM a frame to render, then scroll to the matching section
+  requestAnimationFrame(()=>{
+    const el=document.getElementById('split-section-'+days);
+    if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}
+    else{
+      // Fallback: scroll to top of screen content
+      const sc=document.getElementById('screen');
+      if(sc)sc.scrollTop=0;
+    }
+  });
 }
 
 function rBStep3(){
@@ -1896,9 +1931,14 @@ function rCustomSetup(){
 
   <div class="sec-label">Days per week</div>
   <div class="days-grid" style="margin-bottom:24px">
-    ${[2,3,4,5,6,7].map(d=>`
+    ${[
+      [2,'Minimal'],[3,'Classic'],[4,'Optimal'],[5,'Advanced'],[6,'High vol'],[7,'Max']
+    ].map(([d,lbl])=>`
       <button class="day-btn ${S.customDayCount===d?'sel':''}"
-        onclick="S.customDayCount=${d};initCustomDays();render()">${d}</button>
+        onclick="S.customDayCount=${d};initCustomDays();render()">
+        <span>${d}</span>
+        <span class="day-lbl">${lbl}</span>
+      </button>
     `).join('')}
   </div>
 
@@ -2335,9 +2375,13 @@ function rActive(){
   <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
     <div class="sec-label">RPE (set effort)</div>
     <div class="rpe-scale">
-      ${[5,6,7,8,9,10].map(r=>`<button class="rpe-btn ${cs.rpe===r?'sel':''}" data-rpe="${r}" onclick="setRPE(${r})">${r}</button>`).join('')}
+      ${[5,6,7,8,9,10].map(r=>{
+      const zone=r<=6?'Easy':r<=8?'Mod':r<=9?'Hard':'Max';
+      return`<button class="rpe-btn ${cs.rpe===r?'sel':''}" data-rpe="${r}" onclick="setRPE(${r})">
+        <span>${r}</span><span class="rpe-zone">${zone}</span>
+      </button>`;}).join('')}
     </div>
-    <div style="font-size:11px;color:var(--txt3);margin-top:6px">5=easy · 8=2 reps left · 10=max</div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:8px;text-align:center">Rate difficulty of the set just completed</div>
   </div>
 
 
