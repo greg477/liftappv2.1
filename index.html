@@ -162,12 +162,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 
 
 .sc-tag
-.days-grid{display:flex;gap:8px;margin-bottom:20px}
-.day-btn{flex:1;min-height:72px;border-radius:12px;background:var(--bg2);border:2px solid var(--border2);
-  color:var(--txt);font-size:22px;font-weight:800;cursor:pointer;transition:all .15s;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 4px}
-.day-btn .day-lbl{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
-  color:var(--txt3);line-height:1}
+.days-grid{display:flex;gap:6px;margin-bottom:20px;flex-wrap:nowrap;width:100%}
+.day-btn{flex:1 1 0;min-width:0;min-height:84px;border-radius:12px;background:var(--bg2);
+  border:2px solid var(--border2);color:var(--txt);font-size:28px;font-weight:800;
+  cursor:pointer;transition:all .15s;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;padding:10px 2px;line-height:1;
+  text-overflow:ellipsis;overflow:hidden}
+.day-btn .day-lbl{font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--txt3);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%}
 .day-btn.sel .day-lbl{color:rgba(255,255,255,.7)}
 .day-btn.sel{background:var(--mode);border-color:var(--mode);color:#fff}
 .step-bar{display:flex;gap:6px;padding:0 16px 16px}
@@ -1527,23 +1530,26 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
     </div>
   </div>`:''}
   <div style="font-size:13px;color:var(--txt2);text-align:center;margin:${progEvent?'10px':'16px'} 0 10px">Rate overall exertion</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-bottom:6px;text-align:center">
-    <div style="font-size:10px;font-weight:600;color:#e22020;letter-spacing:.05em">EASY</div>
-    <div style="font-size:10px;font-weight:600;color:#ef9f27;letter-spacing:.05em">MODERATE</div>
-    <div style="font-size:10px;font-weight:600;color:#e24b4a;letter-spacing:.05em">HARD</div>
+  <div style="display:flex;gap:4px;margin-bottom:8px;padding:0 2px">
+    <div style="flex:2;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
+      text-transform:uppercase;color:#22c55e">Easy</div>
+    <div style="flex:2;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
+      text-transform:uppercase;color:#f59e0b">Moderate</div>
+    <div style="flex:1;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
+      text-transform:uppercase;color:#e22020">Hard</div>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px">
-    ${[1,2,3,4,5,6,7,8,9,10].map(r=>`
-      <button onclick="selectExertion(${r},'${exId}',${weight})"
-        style="height:54px;border-radius:10px;border:2px solid ${colors[r]}66;
-               background:${colors[r]}28;color:${colors[r]};font-size:20px;font-weight:700;
-               cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center"
-        ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform=''">
-        ${r}
-      </button>`).join('')}
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--txt3);padding:0 4px;margin-bottom:20px">
-    <span>← Very easy</span><span>Max effort →</span>
+  <div style="display:flex;gap:6px;margin-bottom:14px;width:100%">
+    ${[5,6,7,8,9,10].map(r=>{
+      const col=r<=6?'#22c55e':r<=8?'#f59e0b':'#e22020';
+      const lblTxt=r===5?'easy':r===7?'3 reps left':r===9?'1 left':r===10?'max':'';
+      return`<button onclick="selectExertion(${r},'${exId}',${weight})"
+        style="flex:1 1 0;min-width:0;min-height:88px;border-radius:12px;border:2px solid ${col}55;
+        background:${col}22;color:${col};cursor:pointer;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;padding:6px 2px;gap:4px;line-height:1"
+        ontouchstart="this.style.transform='scale(0.93)'" ontouchend="this.style.transform=''">
+        <span style="font-size:26px;font-weight:800">${r}</span>
+        ${lblTxt?`<span style="font-size:9px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${lblTxt}</span>`:''}
+      </button>`;}).join('')}
   </div>
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
     <textarea id="ex-note-field" placeholder="Note (optional): form cue, how it felt…"
@@ -1901,7 +1907,7 @@ function rBStep2(){
 <div class="sec-label">Days per week</div>
 <div class="days-grid" style="margin-bottom:24px">
   ${[
-    [2,'Minimal'],[3,'Classic'],[4,'Optimal'],[5,'Advanced'],[6,'High vol']
+    [2,'Min'],[3,'Basic'],[4,'Ideal'],[5,'Adv'],[6,'High']
   ].map(([d,lbl])=>`
     <button class="day-btn ${S.bDays===d?'sel':''}"
       onclick="S.bDays=${d};autoSelectSplit();S.bStep=3;render();scrollToDaySection(${d})">
@@ -2045,7 +2051,7 @@ function rCustomSetup(){
   <div class="sec-label">Days per week</div>
   <div class="days-grid" style="margin-bottom:24px">
     ${[
-      [2,'Minimal'],[3,'Classic'],[4,'Optimal'],[5,'Advanced'],[6,'High vol'],[7,'Max']
+      [2,'Min'],[3,'Basic'],[4,'Ideal'],[5,'Adv'],[6,'High'],[7,'Max']
     ].map(([d,lbl])=>`
       <button class="day-btn ${S.customDayCount===d?'sel':''}"
         onclick="S.customDayCount=${d};initCustomDays();render()">
