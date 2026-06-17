@@ -162,17 +162,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 
 
 .sc-tag
-.days-grid{display:flex;gap:6px;margin-bottom:20px;flex-wrap:nowrap;width:100%}
-.day-btn{flex:1 1 0;min-width:0;min-height:84px;border-radius:12px;background:var(--bg2);
-  border:2px solid var(--border2);color:var(--txt);font-size:28px;font-weight:800;
-  cursor:pointer;transition:all .15s;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:4px;padding:10px 2px;line-height:1;
-  text-overflow:ellipsis;overflow:hidden}
-.day-btn .day-lbl{font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
-  color:var(--txt3);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  max-width:100%}
-.day-btn.sel .day-lbl{color:rgba(255,255,255,.7)}
+.days-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;width:100%}
+.day-btn{width:100%;min-height:72px;border-radius:14px;background:var(--bg2);
+  border:2px solid var(--border2);color:var(--txt);cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:16px;padding:14px 18px;text-align:left}
+.day-btn .day-num{font-size:38px;font-weight:800;line-height:1;
+  font-family:'Bebas Neue',Impact,sans-serif;letter-spacing:.04em;font-style:italic;
+  min-width:48px;text-align:center}
+.day-btn .day-info{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.day-btn .day-name{font-size:14px;font-weight:700;letter-spacing:.02em}
+.day-btn .day-desc{font-size:11px;color:var(--txt3);line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day-btn .day-arrow{font-size:18px;color:var(--txt3);flex-shrink:0;transition:transform .15s}
 .day-btn.sel{background:var(--mode);border-color:var(--mode);color:#fff}
+.day-btn.sel .day-desc{color:rgba(255,255,255,.85)}
+.day-btn.sel .day-arrow{color:#fff;transform:translateX(3px)}
 .step-bar{display:flex;gap:6px;padding:0 16px 16px}
 .step-dot{flex:1;height:3px;border-radius:2px;background:var(--border2);transition:background .3s}
 .step-dot.done{background:var(--mode)}
@@ -1907,12 +1911,20 @@ function rBStep2(){
 <div class="sec-label">Days per week</div>
 <div class="days-grid" style="margin-bottom:24px">
   ${[
-    [2,'Min'],[3,'Basic'],[4,'Ideal'],[5,'Adv'],[6,'High']
-  ].map(([d,lbl])=>`
+    [2,'2 days/week','Maintenance · Full-body 2× or Push/Pull split'],
+    [3,'3 days/week','Strength-optimal · Full Body, PPL, or DUP'],
+    [4,'4 days/week','Hypertrophy-optimal · Upper/Lower, PHUL, Classic'],
+    [5,'5 days/week','Advanced · UL+PPL hybrid, PHAT, Body Part'],
+    [6,'6 days/week','High volume · Arnold Split, PPL 6× (RP-style)']
+  ].map(([d,name,desc])=>`
     <button class="day-btn ${S.bDays===d?'sel':''}"
       onclick="S.bDays=${d};autoSelectSplit();S.bStep=3;render();scrollToDaySection(${d})">
-      <span>${d}</span>
-      <span class="day-lbl">${lbl}</span>
+      <span class="day-num">${d}</span>
+      <span class="day-info">
+        <span class="day-name">${name}</span>
+        <span class="day-desc">${desc}</span>
+      </span>
+      <span class="day-arrow">›</span>
     </button>
   `).join('')}
 </div>
@@ -2051,12 +2063,21 @@ function rCustomSetup(){
   <div class="sec-label">Days per week</div>
   <div class="days-grid" style="margin-bottom:24px">
     ${[
-      [2,'Min'],[3,'Basic'],[4,'Ideal'],[5,'Adv'],[6,'High'],[7,'Max']
-    ].map(([d,lbl])=>`
+      [2,'2 days/week','Minimal time commitment'],
+      [3,'3 days/week','Classic balanced training'],
+      [4,'4 days/week','Optimal volume distribution'],
+      [5,'5 days/week','Advanced trainee load'],
+      [6,'6 days/week','High frequency, high volume'],
+      [7,'7 days/week','Daily training (advanced only)']
+    ].map(([d,name,desc])=>`
       <button class="day-btn ${S.customDayCount===d?'sel':''}"
         onclick="S.customDayCount=${d};initCustomDays();render()">
-        <span>${d}</span>
-        <span class="day-lbl">${lbl}</span>
+        <span class="day-num">${d}</span>
+        <span class="day-info">
+          <span class="day-name">${name}</span>
+          <span class="day-desc">${desc}</span>
+        </span>
+        <span class="day-arrow">›</span>
       </button>
     `).join('')}
   </div>
@@ -2372,7 +2393,6 @@ function rActive(){
   const sets=w.sets[w.ei];
   const cs=sets[w.si];
   const doneSets=sets.filter(s=>s.done).length;
-  const rpeC=!cs?.rpe?null:cs.rpe<=6?'#22c55e':cs.rpe<=8?'#f59e0b':'#e22020';
   const sugg=getWeightSuggestions()[exId];
   const lastEx=(getExertionLog()[exId]||[])[0];
   const lastSession=getLastSessionSets(exId);
@@ -2505,31 +2525,7 @@ function rActive(){
     </div>
   </div>
 
-  <div style="padding:12px 0 0;border-bottom:1px solid var(--border)">
-    <div style="padding:0 16px 8px;display:flex;align-items:center;justify-content:space-between">
-      <div class="sec-label" style="margin-bottom:0">RPE — Set Effort</div>
-      ${rpeC?'<span style="font-size:12px;font-weight:700;color:'+rpeC+'">RPE '+cs.rpe+' selected</span>':'<span style="font-size:11px;color:var(--txt3)">optional</span>'}
-    </div>
-    <!-- Zone anchor labels spanning their two buttons each -->
-    <div style="display:flex;padding:0 8px;margin-bottom:4px">
-      <div style="flex:2;text-align:center;font-size:10px;font-weight:700;
-        letter-spacing:.10em;text-transform:uppercase;color:#22c55e">Easy</div>
-      <div style="flex:2;text-align:center;font-size:10px;font-weight:700;
-        letter-spacing:.10em;text-transform:uppercase;color:#f59e0b">Moderate</div>
-      <div style="flex:2;text-align:center;font-size:10px;font-weight:700;
-        letter-spacing:.10em;text-transform:uppercase;color:#e22020">Hard</div>
-    </div>
-    <!-- Full-bleed button row -->
-    <div class="rpe-scale" style="padding:0 8px;gap:5px">
-      ${[5,6,7,8,9,10].map(r=>`
-        <button class="rpe-btn ${cs.rpe===r?'sel':''}" data-rpe="${r}" onclick="setRPE(${r})">
-          ${r}
-        </button>`).join('')}
-    </div>
-    <div style="padding:8px 16px 12px;font-size:11px;color:var(--txt3);text-align:center">
-      5 = very easy · 7 = 3 reps left · 9 = 1 rep left · 10 = max effort
-    </div>
-  </div>
+
 
 
   <div style="padding:14px 16px">
