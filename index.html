@@ -1189,6 +1189,243 @@ function plateBreakdownText(total){
   return p.map(x=>`${x.n}×${x.p}`).join(' + ');
 }
 
+// ── Share Programs via URL ────────────────────────────────────────────
+// Compact encoding to keep URLs short. The active program is an array of
+// {id,label,muscles,exIds,mode,pri,sec}. We strip computed fields (muscles,
+// pri, sec) because they're regenerated; we keep only what's user-authored.
+function encodeProgram(prog,name){
+  if(!prog||!prog.length)return null;
+  const compact={
+    n:name||'Shared Program',
+    d:prog.map(day=>({
+      l:day.label||'Day',
+      m:day.mode||'hypertrophy',
+      e:day.exIds||[]
+    }))
+  };
+  try{
+    // URI-safe base64 (replace +/= with -_~ to avoid URL encoding overhead)
+    const json=JSON.stringify(compact);
+    const b64=btoa(unescape(encodeURIComponent(json)));
+    return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'~');
+  }catch(_){return null;}
+}
+
+function decodeProgram(str){
+  if(!str)return null;
+  try{
+    const b64=str.replace(/-/g,'+').replace(/_/g,'/').replace(/~/g,'=');
+    const json=decodeURIComponent(escape(atob(b64)));
+    const data=JSON.parse(json);
+    if(!data.d||!Array.isArray(data.d))return null;
+    // Rebuild full day objects
+    return {
+      name:data.n||'Shared Program',
+      program:data.d.map((day,i)=>({
+        id:`shared-${i}-${Date.now()}`,
+        label:day.l||`Day ${i+1}`,
+        mode:day.m||'hypertrophy',
+        exIds:day.e||[],
+        muscles:[...new Set((day.e||[]).map(id=>EX[id]?.mg).filter(Boolean))].join(', ')||'Custom',
+        pri:[],sec:[]
+      }))
+    };
+  }catch(_){return null;}
+}
+
+function shareUrl(prog,name){
+  const enc=encodeProgram(prog,name);
+  if(!enc)return null;
+  return location.origin+location.pathname+'?p='+enc;
+}
+
+// ── Share modal ──────────────────────────────────────────────────────
+function showShareModal(){
+  const prog=getActiveProgram();
+  if(!prog||!prog.length){alert('No active program to share.');return;}
+  // Try to derive a sensible name from the current program
+  const stored=LS.get('lift_prog_name')||deriveProgName(prog);
+  const url=shareUrl(prog,stored);
+  if(!url){alert('Could not encode program.');return;}
+  const div=document.createElement('div');
+  div.id='share-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Share Program</div>
+    <div style="font-size:18px;font-weight:700">${esc(stored)}</div>
+    <div style="font-size:12px;color:var(--txt2);margin-top:4px">${prog.length} days · ${prog.reduce((s,d)=>s+(d.exIds?.length||0),0)} exercises</div>
+  </div>
+  <div style="margin:16px 0">
+    <input type="text" id="share-name" value="${esc(stored)}" maxlength="40"
+      placeholder="Program name"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+      color:var(--txt);font-size:14px;padding:10px 12px;border-radius:8px;
+      outline:none;font-family:inherit;box-sizing:border-box;margin-bottom:10px">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+      padding:10px 12px;font-size:11px;color:var(--txt2);
+      word-break:break-all;font-family:ui-monospace,monospace;line-height:1.4;
+      max-height:80px;overflow-y:auto" id="share-url-display">${url}</div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:6px;line-height:1.5">
+      Recipients can tap this link on their phone to import your program. No account or app install needed.
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px">
+    <button onclick="copyShareUrl()" class="btn btn-p" style="flex:1;height:48px;font-size:14px;font-weight:700">
+      Copy Link
+    </button>
+    <button onclick="nativeShareUrl()" class="btn btn-s" style="flex:1;height:48px;font-size:14px;font-weight:700">
+      Share…
+    </button>
+  </div>
+  <button onclick="closeShareModal()"
+    style="width:100%;margin-top:10px;background:none;border:none;color:var(--txt3);
+    font-size:13px;cursor:pointer;padding:8px">Close</button>
+</div>`;
+  document.body.appendChild(div);
+  // Wire name input to live-update the URL
+  setTimeout(()=>{
+    const nm=document.getElementById('share-name');
+    if(nm)nm.addEventListener('input',()=>{
+      const newUrl=shareUrl(prog,nm.value||stored);
+      const disp=document.getElementById('share-url-display');
+      if(disp&&newUrl)disp.textContent=newUrl;
+      LS.set('lift_prog_name',nm.value);
+    });
+  },80);
+}
+
+function closeShareModal(){
+  const m=document.getElementById('share-modal');if(m)m.remove();
+}
+
+function copyShareUrl(){
+  const url=document.getElementById('share-url-display')?.textContent;
+  if(!url)return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>{
+      const btn=event.target;
+      const orig=btn.textContent;btn.textContent='✓ Copied';
+      setTimeout(()=>{btn.textContent=orig;},1400);
+    }).catch(()=>fallbackCopy(url));
+  }else fallbackCopy(url);
+}
+function fallbackCopy(url){
+  const ta=document.createElement('textarea');ta.value=url;
+  ta.style.position='fixed';ta.style.opacity=0;
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');alert('Link copied to clipboard');}
+  catch(_){prompt('Copy this link:',url);}
+  ta.remove();
+}
+
+function nativeShareUrl(){
+  const url=document.getElementById('share-url-display')?.textContent;
+  const name=document.getElementById('share-name')?.value||'Lift program';
+  if(!url)return;
+  if(navigator.share){
+    navigator.share({title:'Lift — '+name,text:'Try this workout program I built in Lift:',url})
+      .catch(()=>{/* user cancelled */});
+  }else{
+    // Fallback: just copy
+    copyShareUrl();
+  }
+}
+
+// ── Derive a name from a program if user hasn't set one ──────────────
+function deriveProgName(prog){
+  if(!prog||!prog.length)return 'My Program';
+  const days=prog.length;
+  // Look up matching split if any
+  for(const[k,sp]of Object.entries(SPLITS)){
+    if(sp.days===days&&sp.schedule.every((d,i)=>d.label===prog[i]?.label)){
+      return sp.name;
+    }
+  }
+  return `Custom ${days}-Day Split`;
+}
+
+// ── Import modal — shown when ?p= param is present ───────────────────
+function showImportPrompt(decoded){
+  const{name,program}=decoded;
+  const totalEx=program.reduce((s,d)=>s+(d.exIds?.length||0),0);
+  const div=document.createElement('div');
+  div.id='import-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px">Shared Program</div>
+    <div style="font-size:22px;font-weight:800;letter-spacing:.04em">${esc(name)}</div>
+    <div style="font-size:13px;color:var(--txt2);margin-top:6px">${program.length} days · ${totalEx} exercises</div>
+  </div>
+  <!-- Day preview -->
+  <div style="background:var(--bg2);border-radius:10px;padding:10px;margin-bottom:14px;max-height:240px;overflow-y:auto">
+    ${program.map(day=>{
+      const modeC=MODES[day.mode]?.c||'#888';
+      const exNames=(day.exIds||[]).map(id=>EX[id]?.n).filter(Boolean);
+      return`<div style="padding:8px 4px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:700">${esc(day.label)}</span>
+          <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;
+            background:${modeC}22;color:${modeC}">${MODES[day.mode]?.n||day.mode}</span>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);line-height:1.4">${exNames.slice(0,4).join(' · ')}${exNames.length>4?` · +${exNames.length-4} more`:''}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${getActiveProgram()?`<div style="font-size:11px;color:var(--amber);background:#3a2a0a;border:1px solid #5a4015;
+    border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.5">
+    ⚠ Importing will replace your current active program. Your workout history is preserved.
+  </div>`:''}
+  <div style="display:flex;gap:8px">
+    <button onclick="cancelImport()" class="btn btn-s" style="flex:1;height:48px;font-size:14px">
+      Cancel
+    </button>
+    <button onclick="confirmImport()" class="btn btn-p" style="flex:2;height:48px;font-size:14px;font-weight:700">
+      Import Program
+    </button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+  // Store the decoded program for the confirm handler
+  window._pendingImport=decoded;
+}
+function cancelImport(){
+  delete window._pendingImport;
+  const m=document.getElementById('import-modal');if(m)m.remove();
+  // Strip ?p= from URL so a refresh doesn't re-prompt
+  if(history.replaceState)history.replaceState({},'',location.pathname);
+}
+function confirmImport(){
+  const pending=window._pendingImport;
+  if(!pending){cancelImport();return;}
+  saveActiveProgram(pending.program);
+  LS.set('lift_prog_name',pending.name);
+  delete window._pendingImport;
+  const m=document.getElementById('import-modal');if(m)m.remove();
+  if(history.replaceState)history.replaceState({},'',location.pathname);
+  S.activeDayIdx=0;S.swapDayIdx=null;
+  smartSelectDay();
+  S.screen='home';render();
+}
+
+// ── Detect ?p= URL param on launch ───────────────────────────────────
+function checkImportFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const p=params.get('p');
+  if(!p)return false;
+  const decoded=decodeProgram(p);
+  if(!decoded){
+    alert('That link contains an invalid or corrupted program.');
+    if(history.replaceState)history.replaceState({},'',location.pathname);
+    return false;
+  }
+  showImportPrompt(decoded);
+  return true;
+}
+
 // ── Streak — consecutive days with at least one workout ───────────────
 function getStreak(){
   const h=getHistory();
@@ -1771,6 +2008,14 @@ function rHome(){
       color:var(--txt3);cursor:pointer;text-decoration:underline">Edit program</button>
   </div>
 
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <button onclick="showShareModal()"
+      style="background:none;border:1px solid var(--border2);color:var(--txt2);
+      padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;
+      display:flex;align-items:center;gap:5px">
+      <span style="font-size:13px">↗</span> Share program
+    </button>
+  </div>
   ${ap.map((day,i)=>{
     const isSelected=S.activeDayIdx===i;
     const isSwapping=S.swapDayIdx===i;
@@ -3742,6 +3987,8 @@ function init(){
     const hasData=getHistory().length>0||!!getActiveProgram();
     if(!onboarded&&!hasData){render();showOnboarding();}
     else{render();}
+    // After UI is up, check for a shared program in the URL
+    setTimeout(checkImportFromUrl,300);
   });
 }
 
