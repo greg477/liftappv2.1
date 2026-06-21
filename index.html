@@ -294,6 +294,8 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 @keyframes pr-in{from{opacity:0;transform:translateX(-50%) translateY(-16px) scale(.92)}
   to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
 @keyframes pr-spin{from{transform:rotate(-180deg) scale(.3)}to{transform:rotate(0) scale(1)}}
+
+.home-alert{border:1px solid;border-radius:10px;padding:11px 13px}
 </style>
 </head>
 <body>
@@ -942,10 +944,10 @@ function staleAction(action){
 
 // Active program: array of {id, label, exIds, mode}
 function getActiveProgram(){return LS.get('lift_prog')||null}
-function saveActiveProgram(prog){LS.set('lift_prog',prog)}
+function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
 
 // ---- Export / Import backup ----
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs'];
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1648,6 +1650,280 @@ function checkPR(exId,w,reps){
   return null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// PRIORITY 2 — Evidence-based metrics
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Mesocycle / Deload tracking ───────────────────────────────────────
+// Activated when a program is saved as active. Used to compute the current
+// training week and surface a deload prompt at week 5 (Helms 2015; Israetel
+// MV→MEV→MAV→MRV mesocycle model).
+function getMesoMeta(){return LS.get('lift_meso')||{};}
+function setMesoActivated(){LS.set('lift_meso',{activated:Date.now(),deloadDismissedWeek:0});}
+function getMesoWeek(){
+  const m=getMesoMeta();
+  if(!m.activated)return 0;
+  const wks=Math.floor((Date.now()-m.activated)/(7*24*60*60*1000))+1;
+  return Math.max(1,wks);
+}
+function isDeloadDue(){
+  const week=getMesoWeek();
+  const m=getMesoMeta();
+  // Suggest deload at week 5 (typical accumulation block), then every 5 weeks after
+  return week>=5 && week%5===0 && (m.deloadDismissedWeek||0) < week;
+}
+function dismissDeloadPrompt(){
+  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();LS.set('lift_meso',m);render();
+}
+function resetMesocycle(){setMesoActivated();render();}
+
+// ── Stagnation detection ──────────────────────────────────────────────
+// Tracks consecutive "missed" sessions per exercise (failed to hit top of
+// rep range). 2+ consecutive misses suggests deload or technique check —
+// supported by Mann et al. 2010 on plateau frequency and Helms et al. 2018
+// on RIR-based autoregulation.
+function getStagnation(){return LS.get('lift_stagnation')||{};}
+function saveStagnation(s){LS.set('lift_stagnation',s);}
+function recordExerciseAttempt(exId,sets,mode){
+  // Called from endExercise. Records hit (top of range reached on final set)
+  // or miss (didn't reach threshold) and updates the running counter.
+  if(!exId||!sets||!sets.length)return;
+  const done=sets.filter(s=>s.done);
+  if(!done.length)return; // didn't actually do the exercise
+  const finalSet=done[done.length-1];
+  const threshold=PROG_THRESHOLDS[mode];
+  if(threshold===undefined)return;
+  const hit=finalSet.reps>=threshold;
+  const stag=getStagnation();
+  const prev=stag[exId]||{misses:0,lastDate:0};
+  if(hit){
+    // Reset on hit
+    if(prev.misses>0){stag[exId]={misses:0,lastDate:Date.now()};saveStagnation(stag);}
+  }else{
+    stag[exId]={misses:(prev.misses||0)+1,lastDate:Date.now()};
+    saveStagnation(stag);
+  }
+}
+function getStagnatedExercises(){
+  const stag=getStagnation();
+  return Object.entries(stag)
+    .filter(([_,v])=>v.misses>=2)
+    .map(([exId,v])=>({exId,name:EX[exId]?.n||exId,misses:v.misses,lastDate:v.lastDate}));
+}
+function resetStagnation(exId){
+  const stag=getStagnation();
+  if(stag[exId]){delete stag[exId];saveStagnation(stag);render();}
+}
+
+// ── Volume trend over time (4-8 weeks) ────────────────────────────────
+// Returns array of {weekStart, mgSets:{Chest:N, Back:N, ...}} for the past
+// `weeksBack` weeks. Used in the volume trend chart.
+function getVolumeTrend(weeksBack){
+  weeksBack=weeksBack||6;
+  const h=getHistory();
+  const now=Date.now();
+  const weekMs=7*24*60*60*1000;
+  const weeks=[];
+  for(let i=weeksBack-1;i>=0;i--){
+    const weekStart=now-((i+1)*weekMs);
+    const weekEnd=now-(i*weekMs);
+    const wkSets={};
+    Object.keys(VOL_TARGETS).forEach(mg=>wkSets[mg]=0);
+    h.forEach(w=>{
+      if(w.date<weekStart||w.date>=weekEnd)return;
+      w.exIds.forEach((id,ei)=>{
+        const done=w.sets[ei].filter(s=>s.done);
+        if(!done.length)return;
+        const mg=EX[id]?.mg;
+        if(wkSets[mg]!==undefined)wkSets[mg]+=done.length;
+      });
+    });
+    weeks.push({weekStart,mgSets:wkSets});
+  }
+  return weeks;
+}
+
+// ── RPE trend per exercise ────────────────────────────────────────────
+// Returns array of {date, avgRPE, maxW} sessions for the selected exercise.
+// Average across logged sets per session; ignores nulls.
+function getRPETrend(exId,limit){
+  limit=limit||20;
+  const h=getHistory();
+  const out=[];
+  for(let i=0;i<h.length&&out.length<limit;i++){
+    const w=h[i];
+    const ei=w.exIds.indexOf(exId);
+    if(ei<0)continue;
+    const sets=(w.sets[ei]||[]).filter(s=>s.done);
+    if(!sets.length)continue;
+    const rpes=sets.map(s=>s.rpe).filter(r=>r!=null);
+    const avgRPE=rpes.length?+(rpes.reduce((a,b)=>a+b,0)/rpes.length).toFixed(1):null;
+    const maxW=Math.max(...sets.map(s=>s.w));
+    out.push({date:w.date,avgRPE,maxW});
+  }
+  return out.reverse(); // oldest first for charting
+}
+
+// ── Relative strength ─────────────────────────────────────────────────
+// Standards from Lon Kilgore's "Strength Training Anatomy" and StrengthLevel.com
+// percentile estimates for adult males. Females generally apply ~0.6× ratios
+// for upper-body lifts and ~0.8× for lower-body. Used as anchors, not gospel.
+const STRENGTH_STANDARDS={
+  'bb-bench':   {name:'Bench Press',  novice:0.75, intermediate:1.0, advanced:1.5, elite:2.0},
+  'bb-sq':      {name:'Squat',        novice:1.0,  intermediate:1.5, advanced:2.25,elite:2.75},
+  'bb-dl':      {name:'Deadlift',     novice:1.25, intermediate:1.75,advanced:2.5, elite:3.0},
+  'bb-ohp':     {name:'Overhead Press',novice:0.55,intermediate:0.75,advanced:1.05,elite:1.4},
+  'bb-row':     {name:'Barbell Row',  novice:0.75, intermediate:1.0, advanced:1.4, elite:1.75},
+};
+
+// ── Stagnation — track consecutive missed top-of-range sets per exercise ────
+// Mann et al. (2010): plateaus typically appear after 2-3 missed progression sessions
+// at the same load. We track per-exercise consecutive-miss count.
+function incrementStagnation(exId){
+  const s=getStagnation();
+  s[exId]={misses:(s[exId]?.misses||0)+1,lastDate:Date.now()};
+  LS.set('lift_stagnation',s);
+}
+function clearStagnation(exId){
+  const s=getStagnation();
+  if(s[exId]){delete s[exId];LS.set('lift_stagnation',s);}
+}
+function isStagnant(exId){
+  return(getStagnation()[exId]?.misses||0)>=2;
+}
+
+// ── Weekly volume trend (last 6 weeks) ──────────────────────────────────────
+// Israetel/RP model: track set count per MG over weeks to identify
+// MEV→MAV→MRV progression and signal deload need.
+function getVolumeOverWeeks(weeksBack=6){
+  const h=getHistory();
+  const MS_WEEK=7*24*60*60*1000;
+  const now=Date.now();
+  // Build week buckets — index 0 = oldest, weeksBack-1 = current week
+  const weeks=Array.from({length:weeksBack},()=>{
+    const wk={};Object.keys(VOL_TARGETS).forEach(mg=>wk[mg]=0);return wk;
+  });
+  h.forEach(w=>{
+    const ageWeeks=Math.floor((now-w.date)/MS_WEEK);
+    if(ageWeeks>=weeksBack||ageWeeks<0)return;
+    const bucket=weeksBack-1-ageWeeks; // newest on right
+    w.exIds.forEach((id,ei)=>{
+      const done=w.sets[ei].filter(s=>s.done);
+      if(!done.length)return;
+      const mg=EX[id]?.mg;
+      if(mg&&weeks[bucket][mg]!==undefined)weeks[bucket][mg]+=done.length;
+    });
+  });
+  return weeks;
+}
+
+// ── RPE trend per exercise (last 8 sessions) ────────────────────────────────
+// Rising average RPE at same/lower load = approaching MRV per Helms's RIR-based
+// autoregulation model. Falling RPE at rising load = adapting well.
+// ── Deload prompt — shown when mesocycle hits week 5/10/15 ─────────────────
+// Bompa & Haff (2009); Israetel: deload every 4-6 weeks, volume cut to 50-60%
+function maybeShowDeloadPrompt(){
+  const w=getMesoWeek();
+  if(w===0)return; // no active program
+  const m=getMesoMeta();
+  // Trigger at week 5, 10, 15, etc — once per deload window
+  if(w%5!==0)return;
+  if((m.deloadDismissedWeek||0)>=w)return; // already dismissed this cycle
+  setTimeout(()=>showDeloadPrompt(w),600);
+}
+
+function showDeloadPrompt(week){
+  if(document.getElementById('deload-modal'))return;
+  const div=document.createElement('div');
+  div.id='deload-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:340px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:32px;margin-bottom:8px">🌙</div>
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Mesocycle Week ${week}</div>
+    <div style="font-size:18px;font-weight:700">Time for a deload?</div>
+  </div>
+  <div style="font-size:12px;color:var(--txt2);line-height:1.7;background:var(--bg2);
+    border-radius:8px;padding:12px;margin-bottom:14px">
+    You've trained for <strong style="color:var(--txt)">${week} weeks</strong> on this program.
+    The literature recommends a planned deload every 4–6 weeks to dissipate accumulated fatigue
+    and consolidate gains (Israetel; Bompa &amp; Haff, 2009).
+    <br><br>
+    <strong style="color:var(--txt)">Suggested deload week:</strong> reduce sets by 50%, keep weights the same, maintain RPE 6–7.
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button onclick="dismissDeload(${week})" class="btn btn-p" style="height:46px;font-size:14px;font-weight:700">
+      Got it — I'll plan a deload
+    </button>
+    <button onclick="dismissDeload(${week})"
+      style="background:none;border:none;color:var(--txt3);font-size:12px;cursor:pointer;
+      padding:8px;text-decoration:underline">
+      Not this cycle
+    </button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+}
+
+function dismissDeload(week){
+  const m=getMesoMeta();
+  LS.set('lift_meso',{...m,deloadDismissedWeek:week});
+  const el=document.getElementById('deload-modal');if(el)el.remove();
+}
+
+function getRelativeStrength(){
+  const bw=(getBW()[0]||{}).w;
+  if(!bw)return[];
+  const prs=getPRs();
+  return Object.entries(STRENGTH_STANDARDS).map(([exId,std])=>{
+    const prW=prs[exId]?.w;
+    const e1=prs[exId]?.e1rm||0;
+    if(!e1)return{exId,name:std.name,ratio:null,level:'No data',color:'var(--txt3)'};
+    const ratio=+(e1/bw).toFixed(2);
+    let level,color;
+    if(ratio>=std.elite){level='Elite';color='#facc15';}
+    else if(ratio>=std.advanced){level='Advanced';color='#22c55e';}
+    else if(ratio>=std.intermediate){level='Intermediate';color='#4ade80';}
+    else if(ratio>=std.novice){level='Novice';color='#60a5fa';}
+    else{level='Untrained';color='#a78bfa';}
+    return{exId,name:std.name,ratio,level,color,e1};
+  }).filter(r=>r.ratio!=null);
+}
+
+// ── Frequency per muscle group ────────────────────────────────────────
+// Returns days-since-last-trained per MG. Surfaces alerts when > 7 days
+// (below 2×/week frequency recommended by Schoenfeld et al. 2016 meta-analysis).
+function getDaysSinceLastTrained(){
+  const h=getHistory();
+  const out={};
+  Object.keys(VOL_TARGETS).forEach(mg=>out[mg]=null);
+  for(const w of h){
+    const ages={};
+    w.exIds.forEach((id,ei)=>{
+      const done=w.sets[ei].filter(s=>s.done);
+      if(!done.length)return;
+      const mg=EX[id]?.mg;
+      if(mg&&out[mg]==null){
+        const days=Math.floor((Date.now()-w.date)/(24*60*60*1000));
+        out[mg]=days;
+      }
+    });
+    // Stop early if all MGs have a value
+    if(Object.values(out).every(v=>v!=null))break;
+  }
+  return out;
+}
+function getUndertrainedMGs(daysCutoff){
+  daysCutoff=daysCutoff||7;
+  const days=getDaysSinceLastTrained();
+  return Object.entries(days)
+    .filter(([_,d])=>d==null||d>=daysCutoff)
+    .map(([mg,d])=>({mg,days:d}));
+}
+// ═══════════════════════════════════════════════════════════════════════
+
+
 // ── PR celebration toast ──────────────────────────────────────────────
 function showPRToast(pr,exName){
   const t=document.createElement('div');
@@ -1826,6 +2102,8 @@ function _doEndExercise(){
   // Use the max weight logged across all sets — not last set (which may be a back-off)
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
   if(done.length>0)saveWeight(exId,maxW);
+  // Priority 2: record this attempt for stagnation detection
+  recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
   if(prog)w.progressions.push(prog);
   showExertionModal(exId,EX[exId]?.n||exId,maxW,prog,()=>{
@@ -2135,6 +2413,80 @@ function render(){
 // =====================================================================
 // HOME SCREEN
 // =====================================================================
+function rHomeAlerts(){
+  const out=[];
+  // Deload prompt — week 5 / 10 / 15
+  if(isDeloadDue()){
+    const week=getMesoWeek();
+    out.push(`<div class="home-alert" style="border-color:#facc15;background:#1a1607">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="font-size:18px;line-height:1.1">🔄</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#facc15">Deload week recommended</div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.5;margin-top:3px">
+            You're in week ${week}. Evidence-based mesocycle planning calls for a deload
+            (~50% volume, same intensity) every 4–6 weeks to dissipate fatigue
+            (Helms 2015; Israetel 2017).
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button onclick="resetMesocycle()" style="background:#facc15;color:#000;border:none;
+              border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">
+              Start deload (reset week)
+            </button>
+            <button onclick="dismissDeloadPrompt()" style="background:none;border:1px solid var(--border2);
+              color:var(--txt3);border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+  }
+  // Stagnation — show top 1-2 stagnated exercises
+  const stag=getStagnatedExercises();
+  if(stag.length){
+    const list=stag.sort((a,b)=>b.misses-a.misses).slice(0,2);
+    out.push(`<div class="home-alert" style="border-color:#f87171;background:#1a0e0e">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="font-size:18px;line-height:1.1">⚠</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:#f87171">
+            ${list.length===1?'1 exercise has stalled':list.length+' exercises have stalled'}
+          </div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.5;margin-top:3px">
+            ${list.map(s=>`<span style="color:var(--txt)">${esc(s.name)}</span> (${s.misses} misses)`).join(' · ')}
+          </div>
+          <div style="font-size:11px;color:var(--txt3);line-height:1.5;margin-top:4px">
+            Consider a deload, technique review, or dropping the weight 5–10% and rebuilding.
+          </div>
+        </div>
+      </div>
+    </div>`);
+  }
+  // Undertrained MGs — only show if a program is active and at least 1 MG > 7 days
+  const undertrained=getUndertrainedMGs(7).filter(m=>m.days!=null&&m.days<60);
+  if(undertrained.length>=2&&getHistory().length>0){
+    const named=undertrained.slice(0,3).map(m=>`<span style="color:var(--txt)">${m.mg}</span> (${m.days}d)`).join(' · ');
+    out.push(`<div class="home-alert" style="border-color:var(--amber);background:#1a1408">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="font-size:18px;line-height:1.1">📅</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--amber)">
+            Some muscles haven't been trained
+          </div>
+          <div style="font-size:11px;color:var(--txt2);line-height:1.5;margin-top:3px">
+            ${named}
+          </div>
+          <div style="font-size:11px;color:var(--txt3);line-height:1.5;margin-top:4px">
+            Schoenfeld 2016 meta-analysis: 2×/week per muscle is optimal for hypertrophy.
+          </div>
+        </div>
+      </div>
+    </div>`);
+  }
+  return out.length?`<div style="margin-bottom:14px;display:flex;flex-direction:column;gap:8px">${out.join('')}</div>`:'';
+}
+
 function rHome(){
   const ap=getActiveProgram();
   const m=MODES[S.mode];
@@ -2145,7 +2497,7 @@ function rHome(){
   <div style="width:36px"></div>
   <div style="text-align:center">
     <div class="page-title lift-wordmark"><span>LIFT</span></div>
-    <div class="page-sub">${today}${(()=>{const s=getStreak();return s>1?` · <span style="color:#facc15;font-weight:700">🔥 ${s}-day streak</span>`:'';})()}</div>
+    <div class="page-sub">${today}${(()=>{const s=getStreak();return s>1?` · <span style="color:#facc15;font-weight:700">🔥 ${s}-day streak</span>`:'';})()}${(()=>{const w=getMesoWeek();return w>0?` · <span style="color:var(--txt2);font-weight:600">Wk ${w}</span>`:'';})()}</div>
   </div>
   <button onclick="S.screen='settings';render()"
     style="background:none;border:none;color:var(--txt3);cursor:pointer;
@@ -2194,7 +2546,11 @@ function rHome(){
       color:var(--txt3);cursor:pointer;text-decoration:underline">Edit program</button>
   </div>
 
-  <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+  ${rHomeAlerts()}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    ${(()=>{const week=getMesoWeek();return week>0?`<div style="font-size:11px;color:var(--txt3);font-weight:600;letter-spacing:.05em">
+      WEEK ${week} OF MESOCYCLE
+    </div>`:'<div></div>';})()}
     <button onclick="showShareModal()"
       style="background:none;border:1px solid var(--border2);color:var(--txt2);
       padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;
@@ -3336,6 +3692,148 @@ function logBWInput(){
   else render();
 }
 
+function rStrengthTab(){
+  const bw=(getBW()[0]||{}).w;
+  const standards=getRelativeStrength();
+  if(!bw){
+    return`<div style="padding:0 16px;color:var(--txt3);font-size:13px;line-height:1.6">
+      <div style="background:var(--bg2);border-radius:10px;padding:14px 16px">
+        Log a bodyweight entry in the card above to see relative strength.
+      </div>
+      ${screenWordmark()}
+    </div>`;
+  }
+  if(!standards.length){
+    return`<div style="padding:0 16px;color:var(--txt3);font-size:13px;line-height:1.6">
+      <div style="background:var(--bg2);border-radius:10px;padding:14px 16px">
+        No PRs logged on the main lifts yet (Bench, Squat, Deadlift, OHP, Row).
+        Complete a set to start tracking relative strength.
+      </div>
+      ${screenWordmark()}
+    </div>`;
+  }
+  return`<div style="padding:0 16px">
+    <div style="font-size:11px;color:var(--txt3);line-height:1.6;margin-bottom:14px;
+      background:var(--bg2);border-radius:8px;padding:10px 12px">
+      Estimated 1RM ÷ bodyweight (${bw} lb). Standards adapted from Kilgore <em>Strength Training Anatomy</em>
+      and StrengthLevel.com percentile estimates for adult males. Bands shift for sex/age.
+    </div>
+    ${standards.map(s=>`
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+          <div style="font-size:13px;font-weight:700">${s.name}</div>
+          <div style="font-size:12px;color:${s.color};font-weight:700">
+            ${s.ratio}× BW · ${s.level}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:5px">
+          e1RM ${s.e1} lb · ${bw} lb BW
+        </div>
+        <div style="background:var(--bg2);border-radius:6px;height:8px;overflow:hidden;position:relative">
+          <div style="height:100%;width:${Math.min(100,(s.ratio/(STRENGTH_STANDARDS[s.exId]?.elite||3))*100).toFixed(0)}%;
+            background:${s.color};border-radius:6px;transition:width .4s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--txt3);margin-top:3px;letter-spacing:.04em">
+          <span>NOVICE</span><span>INTER</span><span>ADV</span><span>ELITE</span>
+        </div>
+      </div>
+    `).join('')}
+    ${screenWordmark()}
+  </div>`;
+}
+
+function rRPETrendSection(){
+  if(!S.progEx)return'';
+  const data=getRPETrend(S.progEx,12);
+  if(data.length<3)return''; // not enough sessions for a trend
+  const rpes=data.map(d=>d.avgRPE).filter(r=>r!=null);
+  if(rpes.length<2)return'';
+  const min=4,max=10;
+  const W=336,H=110,pad=10;
+  const xStep=(W-pad*2)/(data.length-1);
+  // Polyline of avg RPE
+  const pts=data.map((d,i)=>{
+    if(d.avgRPE==null)return null;
+    const x=pad+i*xStep;
+    const y=H-pad-((d.avgRPE-min)/(max-min))*(H-pad*2);
+    return`${x.toFixed(1)},${y.toFixed(1)}`;
+  }).filter(p=>p!=null).join(' ');
+  // Color based on trend
+  const recent=rpes.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,rpes.length);
+  const earlier=rpes.slice(0,3).reduce((a,b)=>a+b,0)/Math.min(3,rpes.length);
+  const trending=recent>earlier+0.5?'#f87171':recent<earlier-0.5?'#4ade80':'#facc15';
+  const trendLabel=recent>earlier+0.5?'Rising effort':recent<earlier-0.5?'Falling effort':'Stable';
+  // Dot markers
+  const dots=data.map((d,i)=>{
+    if(d.avgRPE==null)return'';
+    const x=pad+i*xStep;
+    const y=H-pad-((d.avgRPE-min)/(max-min))*(H-pad*2);
+    return`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${trending}"/>`;
+  }).join('');
+  return`<div style="margin:14px 16px 0;background:var(--bg2);border-radius:10px;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--txt);text-transform:uppercase">
+        RPE Trend
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${trending}">${trendLabel}</div>
+    </div>
+    <div style="font-size:11px;color:var(--txt3);line-height:1.4;margin-bottom:10px">
+      Average set RPE for ${esc(EX[S.progEx]?.n||S.progEx)} across last ${data.length} sessions.
+      ${recent>earlier+0.5?'Rising effort at constant load may indicate approaching MRV — consider deload.':''}
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+      <line x1="${pad}" y1="${H-pad-((7-min)/(max-min))*(H-pad*2)}" x2="${W-pad}" y2="${H-pad-((7-min)/(max-min))*(H-pad*2)}"
+        stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="${W-pad}" y="${(H-pad-((7-min)/(max-min))*(H-pad*2)-3).toFixed(1)}" fill="#444" font-size="9" text-anchor="end">RPE 7</text>
+      <polyline points="${pts}" fill="none" stroke="${trending}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dots}
+    </svg>
+  </div>`;
+}
+
+function rVolumeTrendSection(){
+  const weeks=getVolumeTrend(6);
+  // Check if there's enough data
+  const totalSets=weeks.reduce((s,w)=>s+Object.values(w.mgSets).reduce((a,b)=>a+b,0),0);
+  if(totalSets===0)return'';
+  const mgs=Object.keys(VOL_TARGETS);
+  const colors={Chest:'#ef4444',Back:'#3b82f6',Legs:'#22c55e',Posterior:'#a78bfa',
+    Shoulders:'#facc15',Biceps:'#f97316',Triceps:'#ec4899',Core:'#94a3b8'};
+  // Calculate max for scaling
+  const maxWk=Math.max(1,...weeks.map(w=>Object.values(w.mgSets).reduce((a,b)=>a+b,0)));
+  const W=336,H=160,pad=8,barW=(W-pad*2)/weeks.length-4;
+  // Build stacked bars
+  const bars=weeks.map((wk,i)=>{
+    const x=pad+i*(barW+4);
+    let yCursor=H-pad;
+    const segments=mgs.map(mg=>{
+      const sets=wk.mgSets[mg]||0;
+      if(!sets)return'';
+      const h=(sets/maxWk)*(H-pad*2-12);
+      yCursor-=h;
+      return`<rect x="${x.toFixed(1)}" y="${yCursor.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${colors[mg]||'#888'}" opacity="0.9"/>`;
+    }).join('');
+    const total=Object.values(wk.mgSets).reduce((a,b)=>a+b,0);
+    const lbl=`<text x="${(x+barW/2).toFixed(1)}" y="${H-1}" text-anchor="middle" fill="#666" font-size="9">W${weeks.length-i}</text>`;
+    const totalLbl=total>0?`<text x="${(x+barW/2).toFixed(1)}" y="${(yCursor-3).toFixed(1)}" text-anchor="middle" fill="#ccc" font-size="9" font-weight="600">${total}</text>`:'';
+    return segments+lbl+totalLbl;
+  }).join('');
+  return`<div style="margin-top:16px;background:var(--bg2);border-radius:10px;padding:14px">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;margin-bottom:4px">
+      6-Week Volume Trend
+    </div>
+    <div style="font-size:11px;color:var(--txt3);line-height:1.4;margin-bottom:10px">
+      Total hard sets per week, by muscle group. Look for steady increase week-over-week.
+    </div>
+    <svg viewBox="0 0 ${W} ${H+12}" width="100%" style="display:block">${bars}</svg>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:10px;color:var(--txt2)">
+      ${mgs.map(mg=>`<div style="display:flex;align-items:center;gap:4px">
+        <div style="width:8px;height:8px;border-radius:2px;background:${colors[mg]||'#888'}"></div>${mg}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 function rVolumeTab(){
   const sets=getWeeklyVolume();
   const mgs=Object.keys(VOL_TARGETS);
@@ -3388,6 +3886,7 @@ function rVolumeTab(){
     <strong style="color:var(--txt)">MRV</strong> Maximum Recoverable Volume — above this, recovery fails.
     <br><span style="color:var(--txt3);font-style:italic;margin-top:4px;display:block">Israetel, Hoffmann &amp; Case — RP Hypertrophy, 2019</span>
   </div>
+  ${rVolumeTrendSection()}
   ${screenWordmark()}
 </div>`;
 }
@@ -3406,19 +3905,19 @@ function rProgress(){
   <div style="text-align:center"><div class="page-title"><span>PROGRESS</span></div></div>
 </div>
 <div style="display:flex;gap:0;margin:0 16px 14px;border:1px solid var(--border2);border-radius:10px;overflow:hidden">
-  <button onclick="S.progView='chart';render()"
-    style="flex:1;padding:9px;font-size:12px;font-weight:700;cursor:pointer;border:none;
-    background:${S.progView!=='volume'?'var(--red)':'var(--bg2)'};color:${S.progView!=='volume'?'#fff':'var(--txt3)'}">
-    1RM Chart
-  </button>
-  <button onclick="S.progView='volume';render()"
-    style="flex:1;padding:9px;font-size:12px;font-weight:700;cursor:pointer;border:none;
-    border-left:1px solid var(--border2);
-    background:${S.progView==='volume'?'var(--red)':'var(--bg2)'};color:${S.progView==='volume'?'#fff':'var(--txt3)'}">
-    Weekly Volume
-  </button>
+  ${['chart','volume','strength'].map((v,i)=>{
+    const labels={chart:'1RM',volume:'Volume',strength:'Strength'};
+    const sel=S.progView===v||(v==='chart'&&!S.progView);
+    return`<button onclick="S.progView='${v}';render()"
+      style="flex:1;padding:9px;font-size:12px;font-weight:700;cursor:pointer;border:none;
+      ${i>0?'border-left:1px solid var(--border2);':''}
+      background:${sel?'var(--red)':'var(--bg2)'};color:${sel?'#fff':'var(--txt3)'}">
+      ${labels[v]}
+    </button>`;
+  }).join('')}
 </div>
 ${S.progView==='volume'?rVolumeTab():''}
+${S.progView==='strength'?rStrengthTab():''}
 
 <div id="bw-card">${rBodyWeightCard()}</div>
 <!-- Muscle group filter -->
@@ -4172,7 +4671,7 @@ function init(){
     const onboarded=LS.get('lift_onboarded');
     const hasData=getHistory().length>0||!!getActiveProgram();
     if(!onboarded&&!hasData){render();showOnboarding();}
-    else{render();}
+    else{render();maybeShowDeloadPrompt();}
     // After UI is up, check for a shared program in the URL
     setTimeout(checkImportFromUrl,300);
   });
