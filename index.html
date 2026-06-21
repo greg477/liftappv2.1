@@ -947,7 +947,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
 
 // ---- Export / Import backup ----
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation'];
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1630,12 +1630,87 @@ function getStreak(){
 // ── Personal Records (best e1RM per exercise) ─────────────────────────
 function getPRs(){return LS.get('lift_prs')||{}}
 function savePRs(p){LS.set('lift_prs',p)}
+// ── Custom user-defined exercises (Priority 3 feature) ──────────────────────
+// Stored as {[id]: {n, mg, eq, compound}}. Merged into runtime EX object at
+// app startup via Object.assign so they're indistinguishable from builtins
+// for all downstream logic (volume tracking, history, suggestions, etc.)
+function getCustomExs(){return LS.get('lift_custom_ex')||{};}
+function saveCustomEx(ex){
+  const all=getCustomExs();
+  // Generate a stable, namespaced ID: custom-{timestamp}-{slug}
+  const slug=(ex.n||'exercise').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,20);
+  const id=ex.id||`custom-${Date.now()}-${slug}`;
+  all[id]={n:ex.n,mg:ex.mg,eq:ex.eq||'',compound:!!ex.compound,_custom:true};
+  LS.set('lift_custom_ex',all);
+  // Merge into runtime EX immediately so the new exercise appears in pickers
+  EX[id]=all[id];
+  return id;
+}
+function deleteCustomEx(id){
+  const all=getCustomExs();
+  if(!all[id])return;
+  delete all[id];
+  LS.set('lift_custom_ex',all);
+  delete EX[id];
+}
+function mergeCustomExs(){
+  // Called once at startup; idempotent (overwrites if collision, which shouldn't happen)
+  const cust=getCustomExs();
+  Object.keys(cust).forEach(id=>{EX[id]=cust[id];});
+}
+
+// ── Per-exercise rest timer override (Priority 3 feature) ───────────────────
+// Stored as {[exId]: seconds}. Used by startTimer to override the mode default.
+function getExRest(exId){
+  const all=LS.get('lift_ex_rest')||{};
+  return all[exId]||null;
+}
+function setExRest(exId,seconds){
+  const all=LS.get('lift_ex_rest')||{};
+  if(!seconds||seconds<10)delete all[exId];
+  else all[exId]=Math.min(600,Math.round(seconds));
+  LS.set('lift_ex_rest',all);
+}
+
+// ── Saved program presets (Priority 3 feature) ──────────────────────────────
+// Stored as [{name, prog, savedDate}]. Active program lives separately in lift_prog.
+function getSavedPrograms(){return LS.get('lift_progs')||[];}
+function saveProgramPreset(name){
+  const prog=getActiveProgram();
+  if(!prog||!prog.length)return null;
+  const list=getSavedPrograms();
+  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now()};
+  list.unshift(entry);
+  LS.set('lift_progs',list.slice(0,20));  // cap at 20 saved presets
+  return entry;
+}
+function loadProgramPreset(idx){
+  const list=getSavedPrograms();
+  if(!list[idx])return false;
+  saveActiveProgram(JSON.parse(JSON.stringify(list[idx].prog)));
+  S.activeDayIdx=0;S.swapDayIdx=null;
+  smartSelectDay();
+  return true;
+}
+function deleteProgramPreset(idx){
+  const list=getSavedPrograms();
+  list.splice(idx,1);
+  LS.set('lift_progs',list);
+}
+
 function calcE1RM(w,reps){
-  // Epley formula valid 1-12 reps; cap at 12 to prevent inflated e1RM from high-rep sets
-  // (Mayhew et al. 1995 — prediction error grows from ~3% at 5 reps to >15% at 20+ reps)
+  // 1RM estimation — cap reps at 12 (Mayhew et al. 1995: prediction error grows
+  // from ~3% at 5 reps to >15% at 20+ reps for any rep-max formula).
+  // Brzycki (1993) more accurate at 1-7 reps per LeSuer et al. (1997);
+  // Epley (1985) more accurate at 7-10 reps. User selects via Settings.
   if(reps<=0)return 0;
   const r=Math.min(12,reps);
-  return+(w*(1+r/30)).toFixed(1);
+  const formula=(getPrefs().oneRMFormula)||'epley';
+  if(formula==='brzycki'){
+    // w * 36 / (37 - reps) — undefined at reps>=37 but our cap prevents that
+    return+(w*36/(37-r)).toFixed(1);
+  }
+  return+(w*(1+r/30)).toFixed(1);  // Epley
 }
 function checkPR(exId,w,reps){
   if(!w||!reps)return null;
@@ -2016,13 +2091,16 @@ function logSet(){
   saveWeight(exId,cs.w);
   // PR check — fires if this set's e1RM beats the all-time best for the exercise
   const pr=checkPR(exId,cs.w,cs.reps);
-  if(pr){setTimeout(()=>showPRToast(pr,EX[exId]?.n||exId),350);}
+  if(pr){
+    cs.isPR=true; // mark for ★ badge in history detail
+    setTimeout(()=>showPRToast(pr,EX[exId]?.n||exId),350);
+  }
   const{sets,ei,si}=S.workout;
   const isLastSet=si>=sets[ei].length-1;
   if(!isLastSet){
     S.workout.si++;
     saveWorkoutState();vibrate(30);
-    startTimer(MODES[S.workout.mode].rest);
+    startTimer(getExRest(S.workout.exIds[S.workout.ei])||MODES[S.workout.mode].rest);
   }else{
     saveWorkoutState();vibrate(30);render();
   }
@@ -2577,6 +2655,11 @@ function rHome(){
             ${isTarget?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid ${modeC};color:${modeC};letter-spacing:.06em">TAP TO SWAP</span>`:''}
           </div>
           <div style="font-size:11px;color:var(--txt2);margin-top:3px">${day.muscles||''}</div>
+          ${day.notes?`<div style="font-size:10px;color:var(--txt3);margin-top:4px;line-height:1.4;font-style:italic;
+            display:flex;align-items:flex-start;gap:5px">
+            <span style="font-size:10px">📝</span>
+            <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(day.notes)}</span>
+          </div>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;
@@ -2584,6 +2667,11 @@ function rHome(){
             ${MODES[day.mode||S.mode]?.n||''}
           </span>
           ${!swapPending?`<button
+            onclick="event.stopPropagation();showDayNoteModal(${i})"
+            title="Edit day note"
+            style="background:none;border:1px solid var(--border2);color:var(--txt3);
+            width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:12px;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0">📝</button><button
             onclick="event.stopPropagation();S.swapDayIdx=${i};render()"
             title="Reorder this day"
             style="background:none;border:1px solid var(--border2);color:var(--txt3);
@@ -3556,6 +3644,7 @@ function rHistDetail(){
             ${isBest?'background:'+mgC+'0d;margin:0 -16px;padding:8px 16px;border-radius:0;':''}">
             <span style="color:var(--txt3)">${i+1}</span>
             <span style="font-weight:600">${s.w} lbs × ${s.reps}
+              ${s.isPR?'<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#facc1530;color:#facc15;margin-left:4px" title="New e1RM PR">★ PR</span>':''}
               ${isBest?'<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:'+mgC+'30;color:'+mgC+';margin-left:4px">BEST</span>':''}
             </span>
             <span style="color:var(--txt2)">${s.rpe||'—'}</span>
@@ -4080,7 +4169,12 @@ function rAddEx(){
 <div class="wh" style="position:sticky;top:0;z-index:10">
   <div style="display:flex;align-items:center;gap:8px">
     <button onclick="S.screen='active';render()" style="background:none;border:none;color:var(--txt2);font-size:22px;cursor:pointer;line-height:1">‹</button>
-    <div class="wh-title">Add Accessory</div>
+    <div class="wh-title" style="flex:1">Add Accessory</div>
+    <button onclick="showCustomExModal()"
+      style="background:none;border:1px solid var(--border2);color:var(--red);
+      padding:5px 11px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">
+      + Create
+    </button>
   </div>
 </div>
 <div style="padding:0 16px">
@@ -4593,6 +4687,32 @@ function showExInfo(exId) {
     Prioritise this exercise first in your session while CNS is fresh.
   </div>` : ''}
 
+  <!-- Rest timer override -->
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;
+    padding:12px 14px;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)">Rest timer</div>
+      ${getExRest(exId)?`<button onclick="setExRest('${exId}',0);removeExInfo();showExInfo('${exId}')"
+        style="background:none;border:none;color:var(--red);font-size:11px;cursor:pointer;
+        font-weight:600">Reset to mode default</button>`:''}
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input type="number" id="ex-rest-input" min="10" max="600" step="5"
+        value="${getExRest(exId)||(S.workout?MODES[S.workout.mode]?.rest:90)}"
+        style="flex:1;background:var(--bg3);border:1px solid var(--border2);
+        color:var(--txt);font-size:15px;font-weight:600;text-align:center;
+        padding:9px 12px;border-radius:7px;outline:none;font-family:inherit;box-sizing:border-box">
+      <span style="font-size:12px;color:var(--txt3);font-weight:600">seconds</span>
+      <button onclick="const v=parseInt(document.getElementById('ex-rest-input').value);if(v>=10&&v<=600){setExRest('${exId}',v);}removeExInfo();"
+        class="btn btn-p" style="height:38px;padding:0 14px;font-size:12px;font-weight:700">
+        Save
+      </button>
+    </div>
+    <div style="font-size:10px;color:var(--txt3);margin-top:6px;line-height:1.4">
+      ${getExRest(exId)?`Currently overriding mode default with ${getExRest(exId)}s.`:`Uses mode default. Override for this exercise only.`}
+    </div>
+  </div>
+
   <button onclick="removeExInfo()" class="btn btn-s btn-xl">Close</button>
 </div>`;
   div.addEventListener('click', removeExInfo);
@@ -4666,7 +4786,8 @@ function init(){
     elapsedIv=setInterval(()=>{const e=document.getElementById('w-elapsed');if(e)e.textContent=fmtElapsed();},1000);
   }
   smartSelectDay();
-  // Show splash first, then onboarding or app
+  mergeCustomExs(); // Merge user-created exercises into runtime EX
+    // Show splash first, then onboarding or app
   showSplash(()=>{
     const onboarded=LS.get('lift_onboarded');
     const hasData=getHistory().length>0||!!getActiveProgram();
@@ -4723,6 +4844,23 @@ function rSettings(){
 
   <div class="settings-row">
     <div>
+      <div class="settings-label">1RM estimation formula</div>
+      <div class="settings-sub">Brzycki: more accurate 1–7 reps · Epley: more accurate 7–10 reps (LeSuer 1997)</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      ${['epley','brzycki'].map(f=>`
+        <button onclick="savePrefs({oneRMFormula:'${f}'});render()"
+          style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;
+          border:1.5px solid ${(p.oneRMFormula||'epley')===f?'var(--red)':'var(--border2)'};
+          background:${(p.oneRMFormula||'epley')===f?'var(--red)22':'var(--bg2)'};
+          color:${(p.oneRMFormula||'epley')===f?'var(--red)':'var(--txt3)'};
+          text-transform:capitalize">${f}</button>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="settings-row">
+    <div>
       <div class="settings-label">Barbell weight</div>
       <div class="settings-sub">Used to show plate breakdown · 45 lb Olympic, 35 lb women's, 15 lb training</div>
     </div>
@@ -4761,6 +4899,43 @@ function rSettings(){
     </label>
   </div>
 
+  <!-- SAVED PROGRAMS -->
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin:20px 0 10px">Programs</div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Saved program presets</div>
+      <div class="settings-sub">${getSavedPrograms().length} preset${getSavedPrograms().length===1?'':'s'} saved · max 20</div>
+    </div>
+    <button onclick="showSavePresetPrompt()"
+      style="background:none;border:1px solid var(--border2);color:var(--txt2);
+      padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">
+      Save current
+    </button>
+  </div>
+  ${getSavedPrograms().length?`<div style="margin-bottom:14px;display:flex;flex-direction:column;gap:6px">
+    ${getSavedPrograms().map((preset,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;
+        background:var(--bg2);border:1px solid var(--border);border-radius:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preset.name)}</div>
+          <div style="font-size:10px;color:var(--txt3)">${preset.prog.length} days · saved ${new Date(preset.savedDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+        </div>
+        <button onclick="if(confirm('Load \'${esc(preset.name).replace(/'/g,'&apos;')}\' as your active program?')){loadProgramPreset(${i});render();}"
+          style="background:none;border:1px solid var(--border2);color:var(--txt2);
+          padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;flex-shrink:0">
+          Load
+        </button>
+        <button onclick="if(confirm('Delete this preset?')){deleteProgramPreset(${i});render();}"
+          style="background:none;border:1px solid #5a2020;color:#a02020;
+          padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0">
+          ✕
+        </button>
+      </div>
+    `).join('')}
+  </div>`:''}
+
   <!-- DATA -->
   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
     text-transform:uppercase;margin:20px 0 10px">Data</div>
@@ -4796,6 +4971,152 @@ function rSettings(){
     Auto-progression · 16 programs · Custom splits
   </div>
 </div>`;
+}
+
+function showSavePresetPrompt(){
+  const prog=getActiveProgram();
+  if(!prog||!prog.length){alert('No active program to save.');return;}
+  const defaultName=(LS.get('lift_prog_name')||deriveProgName(prog)||'My Program');
+  const name=prompt('Save current program as preset:',defaultName);
+  if(!name||!name.trim())return;
+  saveProgramPreset(name.trim().slice(0,50));
+  render();
+}
+
+function showCustomExModal(){
+  const div=document.createElement('div');
+  div.id='custom-ex-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:360px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">New Exercise</div>
+    <div style="font-size:18px;font-weight:700">Create custom exercise</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px">
+    <div>
+      <label style="font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--txt3);text-transform:uppercase;display:block;margin-bottom:4px">Exercise name</label>
+      <input type="text" id="cex-name" maxlength="40" placeholder="e.g. Bulgarian Split Squat"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+        color:var(--txt);font-size:14px;padding:10px 12px;border-radius:8px;
+        outline:none;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--txt3);text-transform:uppercase;display:block;margin-bottom:6px">Primary muscle group</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px" id="cex-mg-row">
+        ${Object.keys(MG_COLORS).map(mg=>`
+          <button type="button" data-mg="${mg}" onclick="selectCexMg('${mg}')"
+            style="padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;
+            border:1.5px solid var(--border2);background:var(--bg2);color:var(--txt2)">${mg}</button>
+        `).join('')}
+      </div>
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--txt3);text-transform:uppercase;display:block;margin-bottom:4px">Equipment (optional)</label>
+      <input type="text" id="cex-eq" maxlength="30" placeholder="e.g. Dumbbell · Bench"
+        style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+        color:var(--txt);font-size:13px;padding:10px 12px;border-radius:8px;
+        outline:none;font-family:inherit;box-sizing:border-box">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      background:var(--bg2);border-radius:8px;padding:10px 12px">
+      <div>
+        <div style="font-size:13px;font-weight:600">Compound movement</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:1px">Multi-joint, generally heavier loads</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="cex-compound">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="closeCustomExModal()" class="btn btn-s" style="flex:1;height:46px;font-size:13px">Cancel</button>
+    <button onclick="submitCustomEx()" class="btn btn-p" style="flex:2;height:46px;font-size:14px;font-weight:700">Create</button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+  window._cexMg=null;
+  setTimeout(()=>{const n=document.getElementById('cex-name');if(n)n.focus();},120);
+}
+
+function selectCexMg(mg){
+  window._cexMg=mg;
+  document.querySelectorAll('#cex-mg-row button').forEach(b=>{
+    const sel=b.dataset.mg===mg;
+    b.style.borderColor=sel?'var(--red)':'var(--border2)';
+    b.style.background=sel?'var(--red)22':'var(--bg2)';
+    b.style.color=sel?'var(--red)':'var(--txt2)';
+  });
+}
+
+function closeCustomExModal(){
+  const m=document.getElementById('custom-ex-modal');if(m)m.remove();
+  delete window._cexMg;
+}
+
+function submitCustomEx(){
+  const n=document.getElementById('cex-name')?.value.trim();
+  const mg=window._cexMg;
+  const eq=document.getElementById('cex-eq')?.value.trim();
+  const compound=document.getElementById('cex-compound')?.checked;
+  if(!n){alert('Please enter an exercise name.');return;}
+  if(!mg){alert('Please select a primary muscle group.');return;}
+  saveCustomEx({n,mg,eq,compound});
+  closeCustomExModal();
+  render();
+}
+
+// ── Day-level program notes (Priority 3 feature) ────────────────────────────
+// Stored as a `notes` field on the day object inside the active program.
+// Persists with the program through saveActiveProgram.
+function showDayNoteModal(dayIdx){
+  const prog=getActiveProgram();
+  if(!prog||!prog[dayIdx])return;
+  const day=prog[dayIdx];
+  const div=document.createElement('div');
+  div.id='day-note-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:360px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Day Note</div>
+    <div style="font-size:18px;font-weight:700">${esc(day.label||'Day '+(dayIdx+1))}</div>
+  </div>
+  <div style="margin-bottom:14px">
+    <textarea id="day-note-input" rows="4" maxlength="300"
+      placeholder="Notes for this day — focus areas, form cues, program intent…"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border2);
+      color:var(--txt);font-size:13px;padding:11px 13px;border-radius:8px;
+      outline:none;font-family:inherit;box-sizing:border-box;resize:vertical;
+      line-height:1.5;min-height:80px">${esc(day.notes||'')}</textarea>
+    <div style="font-size:10px;color:var(--txt3);margin-top:5px;text-align:right">
+      Max 300 characters
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="closeDayNoteModal()" class="btn btn-s" style="flex:1;height:46px;font-size:13px">Cancel</button>
+    <button onclick="saveDayNote(${dayIdx})" class="btn btn-p" style="flex:2;height:46px;font-size:14px;font-weight:700">Save</button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+  setTimeout(()=>{const t=document.getElementById('day-note-input');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);}},120);
+}
+function closeDayNoteModal(){
+  const m=document.getElementById('day-note-modal');if(m)m.remove();
+}
+function saveDayNote(dayIdx){
+  const t=document.getElementById('day-note-input');
+  if(!t)return;
+  const prog=getActiveProgram();
+  if(!prog||!prog[dayIdx])return;
+  const note=t.value.trim().slice(0,300);
+  if(note)prog[dayIdx].notes=note;
+  else delete prog[dayIdx].notes;
+  LS.set('lift_prog',prog);  // direct write — don't reset mesocycle
+  closeDayNoteModal();
+  render();
 }
 
 function clearAllData(){
