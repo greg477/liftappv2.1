@@ -799,8 +799,59 @@ let S = {
 // =====================================================================
 const LS = {
   get:(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},
+  set:(k,v)=>{
+    try{localStorage.setItem(k,JSON.stringify(v));return true;}
+    catch(e){
+      // QuotaExceededError (or Safari's equivalent) — surface to the user so they
+      // don't continue thinking writes are succeeding when they're not.
+      // Throttle to once per 60 seconds so we don't spam.
+      const isQuota=e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014);
+      if(isQuota){
+        const now=Date.now();
+        if(!window._lastQuotaWarn||(now-window._lastQuotaWarn)>60000){
+          window._lastQuotaWarn=now;
+          // Defer so this runs after current render cycle
+          setTimeout(()=>showQuotaWarning(k),50);
+        }
+      }
+      return false;
+    }
+  },
 };
+
+// Banner shown when localStorage runs out of space — gives the user a recovery path
+function showQuotaWarning(failedKey){
+  if(document.getElementById('quota-banner'))return; // already shown
+  const b=document.createElement('div');
+  b.id='quota-banner';
+  b.innerHTML=`
+<div style="display:flex;align-items:flex-start;gap:10px">
+  <div style="font-size:18px;flex-shrink:0;line-height:1">⚠</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:3px">Storage full</div>
+    <div style="font-size:11px;color:#ddd;line-height:1.5">
+      Your browser's storage limit was hit on save (<span style="font-family:ui-monospace,monospace">${esc(failedKey||'')}</span>).
+      Recent changes may not have been saved. Export a backup, then clear old history to free space.
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button onclick="exportBackup();this.parentNode.parentNode.parentNode.parentNode.remove()"
+        style="background:#fff;color:#000;border:none;border-radius:6px;
+        padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">Export now</button>
+      <button onclick="this.parentNode.parentNode.parentNode.parentNode.remove()"
+        style="background:none;border:1px solid #555;color:#ccc;border-radius:6px;
+        padding:6px 12px;font-size:11px;cursor:pointer">Dismiss</button>
+    </div>
+  </div>
+</div>`;
+  Object.assign(b.style,{
+    position:'fixed',top:'calc(12px + env(safe-area-inset-top))',
+    left:'12px',right:'12px',background:'#3a1a0a',
+    border:'1.5px solid #c2410c',borderRadius:'10px',
+    padding:'12px 14px',zIndex:'400',
+    boxShadow:'0 4px 24px rgba(0,0,0,.7)'
+  });
+  document.body.appendChild(b);
+}
 // HTML escape for any user-controlled string before innerHTML injection
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 // History cache — avoids repeated JSON.parse on every progress render
@@ -828,6 +879,65 @@ function loadWorkoutState(){
   const w=LS.get('lift_wip');
   if(!w)return;
   S.workout=w;
+  // Stale workout check — if the in-progress workout is older than 12 hrs, ask the user
+  const STALE_MS=12*60*60*1000;
+  if(w.startTime&&(Date.now()-w.startTime)>STALE_MS){
+    // Defer prompt until after splash so the modal renders over the home screen
+    setTimeout(()=>showStaleWorkoutPrompt(w),400);
+  }
+}
+
+function showStaleWorkoutPrompt(w){
+  if(!S.workout)return; // user already cleared it
+  const hours=Math.round((Date.now()-w.startTime)/3600000);
+  const ageStr=hours<24?`${hours} hours ago`:`${Math.floor(hours/24)} day${hours>=48?'s':''} ago`;
+  const doneSets=w.sets?.flat().filter(s=>s.done).length||0;
+  const div=document.createElement('div');
+  div.id='stale-modal';div.className='modal-bg';
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:340px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:32px;margin-bottom:8px">⏰</div>
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Unfinished Workout</div>
+    <div style="font-size:18px;font-weight:700">${esc(w.dayLabel||'Workout')}</div>
+    <div style="font-size:13px;color:var(--txt2);margin-top:6px">Started ${ageStr} · ${doneSets} set${doneSets!==1?'s':''} logged</div>
+  </div>
+  <div style="font-size:12px;color:var(--txt2);line-height:1.6;background:var(--bg2);
+    border-radius:8px;padding:10px 12px;margin-bottom:14px">
+    This workout was started a while ago. What would you like to do?
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button onclick="staleAction('save')" class="btn btn-p" style="height:46px;font-size:14px;font-weight:700">
+      Save what I logged
+    </button>
+    <button onclick="staleAction('resume')" class="btn btn-s" style="height:46px;font-size:13px">
+      Resume workout
+    </button>
+    <button onclick="staleAction('discard')"
+      style="background:none;border:none;color:#7a2020;font-size:12px;cursor:pointer;
+      padding:8px;text-decoration:underline">
+      Discard workout
+    </button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+}
+
+function staleAction(action){
+  const m=document.getElementById('stale-modal');if(m)m.remove();
+  if(action==='discard'){
+    _releaseWakeLock();
+    clearInterval(elapsedIv);clearInterval(timer.iv);
+    timer.active=false;S.workout=null;
+    LS.set('lift_wip',null);
+    const navEl=document.getElementById('nb-active');if(navEl)navEl.style.display='none';
+    render();
+  }else if(action==='save'){
+    // Save what's logged as a completed workout
+    finishWorkout();
+  }
+  // 'resume' = do nothing, workout stays as-is
 }
 
 // Active program: array of {id, label, exIds, mode}
@@ -867,14 +977,68 @@ function importBackup(){
       try{
         const data=JSON.parse(ev.target.result);
         if(!data.v){alert('Unrecognized backup file.');return;}
+        // Safety snapshot — store the current state in lift_import_snapshot
+        // so a botched import can be rolled back within 10 seconds.
+        const snapshot={};
+        BACKUP_KEYS.forEach(k=>{const v=LS.get(k);if(v!==null)snapshot[k]=v;});
+        snapshot._stamp=Date.now();
+        LS.set('lift_import_snapshot',snapshot);
+        // Apply import
         BACKUP_KEYS.forEach(k=>{if(data[k]!==undefined)LS.set(k,data[k]);});
-        alert('Backup restored. Reloading…');
-        location.reload();
+        // Show undo toast for 10 seconds before reload
+        showImportUndoToast();
+        setTimeout(()=>location.reload(),10500);
       }catch{alert('Could not read backup file.');}
     };
     reader.readAsText(file);
   };
   document.body.appendChild(inp);inp.click();inp.remove();
+}
+
+function showImportUndoToast(){
+  const t=document.createElement('div');
+  t.id='import-toast';
+  t.innerHTML=`
+<div style="display:flex;align-items:center;gap:10px;width:100%">
+  <div style="flex:1;min-width:0">
+    <div style="font-size:12px;font-weight:700;color:#fff">Backup imported</div>
+    <div style="font-size:11px;color:#aaa;margin-top:1px">Reloading in <span id="import-toast-secs">10</span>s</div>
+  </div>
+  <button onclick="undoImport()"
+    style="background:var(--red);color:#fff;border:none;border-radius:7px;
+    padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer">
+    ↩ Undo
+  </button>
+</div>`;
+  Object.assign(t.style,{
+    position:'fixed',bottom:'calc(var(--nav) + 16px)',left:'50%',
+    transform:'translateX(-50%)',background:'#1c1c1c',
+    border:'1px solid #333',borderRadius:'12px',padding:'12px 16px',
+    width:'calc(100% - 32px)',maxWidth:'380px',zIndex:'200',
+    boxShadow:'0 4px 24px rgba(0,0,0,.6)'
+  });
+  document.body.appendChild(t);
+  // Tick the countdown
+  let secs=10;
+  const iv=setInterval(()=>{
+    secs--;
+    const el=document.getElementById('import-toast-secs');
+    if(el)el.textContent=secs;
+    if(secs<=0)clearInterval(iv);
+  },1000);
+}
+
+function undoImport(){
+  const snap=LS.get('lift_import_snapshot');
+  if(!snap){alert('No snapshot available.');return;}
+  // Wipe imported keys, then restore the snapshot
+  BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
+  Object.keys(snap).forEach(k=>{if(k!=='_stamp')LS.set(k,snap[k]);});
+  LS.set('lift_import_snapshot',null);
+  // Brief confirm, then reload to a clean state
+  const t=document.getElementById('import-toast');
+  if(t)t.innerHTML='<div style="text-align:center;color:#fff;font-weight:700">↩ Restored — reloading</div>';
+  setTimeout(()=>location.reload(),600);
 }
 
 // Per-day custom overrides (swaps within a program day)
@@ -1218,17 +1382,28 @@ function decodeProgram(str){
     const json=decodeURIComponent(escape(atob(b64)));
     const data=JSON.parse(json);
     if(!data.d||!Array.isArray(data.d))return null;
-    // Rebuild full day objects
-    return {
-      name:data.n||'Shared Program',
-      program:data.d.map((day,i)=>({
+    // Validate exercise IDs against the current EX map; collect any missing
+    const missing=new Set();
+    const program=data.d.map((day,i)=>{
+      const rawExIds=day.e||[];
+      const validExIds=rawExIds.filter(id=>{
+        if(EX[id])return true;
+        missing.add(id);return false;
+      });
+      const mode=day.m&&MODES[day.m]?day.m:'hypertrophy';
+      return{
         id:`shared-${i}-${Date.now()}`,
         label:day.l||`Day ${i+1}`,
-        mode:day.m||'hypertrophy',
-        exIds:day.e||[],
-        muscles:[...new Set((day.e||[]).map(id=>EX[id]?.mg).filter(Boolean))].join(', ')||'Custom',
+        mode,
+        exIds:validExIds,
+        muscles:[...new Set(validExIds.map(id=>EX[id]?.mg).filter(Boolean))].join(', ')||'Custom',
         pri:[],sec:[]
-      }))
+      };
+    });
+    return{
+      name:data.n||'Shared Program',
+      program,
+      missingExIds:[...missing]  // surfaced in the import prompt
     };
   }catch(_){return null;}
 }
@@ -1375,6 +1550,11 @@ function showImportPrompt(decoded){
       </div>`;
     }).join('')}
   </div>
+  ${decoded.missingExIds&&decoded.missingExIds.length?`<div style="font-size:11px;color:#f87171;background:#2a0a0a;
+    border:1px solid #4a1515;border-radius:8px;padding:8px 12px;margin-bottom:8px;line-height:1.5">
+    ⚠ ${decoded.missingExIds.length} exercise${decoded.missingExIds.length>1?'s':''} not recognized
+    and skipped: <span style="color:var(--txt2);font-family:ui-monospace,monospace">${decoded.missingExIds.slice(0,4).join(', ')}${decoded.missingExIds.length>4?` +${decoded.missingExIds.length-4} more`:''}</span>
+  </div>`:''}
   ${getActiveProgram()?`<div style="font-size:11px;color:var(--amber);background:#3a2a0a;border:1px solid #5a4015;
     border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.5">
     ⚠ Importing will replace your current active program. Your workout history is preserved.
@@ -1448,7 +1628,13 @@ function getStreak(){
 // ── Personal Records (best e1RM per exercise) ─────────────────────────
 function getPRs(){return LS.get('lift_prs')||{}}
 function savePRs(p){LS.set('lift_prs',p)}
-function calcE1RM(w,reps){return reps>0?+(w*(1+reps/30)).toFixed(1):0;}
+function calcE1RM(w,reps){
+  // Epley formula valid 1-12 reps; cap at 12 to prevent inflated e1RM from high-rep sets
+  // (Mayhew et al. 1995 — prediction error grows from ~3% at 5 reps to >15% at 20+ reps)
+  if(reps<=0)return 0;
+  const r=Math.min(12,reps);
+  return+(w*(1+r/30)).toFixed(1);
+}
 function checkPR(exId,w,reps){
   if(!w||!reps)return null;
   const e1=calcE1RM(w,reps);
