@@ -777,10 +777,10 @@ let S = {
   swapIdx:null,
   swapCtx:'workout',   // 'workout' | 'program' | 'builder'
   swapEqFilter:'All',
-  swapDayIdx:0,        // used for 'builder' context: which preview day
+  swapBuilderDayIdx:0,  // 'builder' context: which preview day in builder
   bCollapsed:new Set(), // collapsed day indices in builder preview
   customDays:[],        // [{name,exIds,mode}] for custom split builder
-  swapDayIdx:null,      // day index being repositioned in the rotation
+  swapDayIdx:null,      // home: day index being repositioned in rotation (null = not swapping)
   customDayCount:3,     // number of custom days
   customEditDayIdx:0,   // which day is being edited
   customMgFilter:'All', // muscle group filter in custom exercise picker
@@ -1851,22 +1851,6 @@ const STRENGTH_STANDARDS={
   'bb-row':     {name:'Barbell Row',  novice:0.75, intermediate:1.0, advanced:1.4, elite:1.75},
 };
 
-// ── Stagnation — track consecutive missed top-of-range sets per exercise ────
-// Mann et al. (2010): plateaus typically appear after 2-3 missed progression sessions
-// at the same load. We track per-exercise consecutive-miss count.
-function incrementStagnation(exId){
-  const s=getStagnation();
-  s[exId]={misses:(s[exId]?.misses||0)+1,lastDate:Date.now()};
-  LS.set('lift_stagnation',s);
-}
-function clearStagnation(exId){
-  const s=getStagnation();
-  if(s[exId]){delete s[exId];LS.set('lift_stagnation',s);}
-}
-function isStagnant(exId){
-  return(getStagnation()[exId]?.misses||0)>=2;
-}
-
 // ── Weekly volume trend (last 6 weeks) ──────────────────────────────────────
 // Israetel/RP model: track set count per MG over weeks to identify
 // MEV→MAV→MRV progression and signal deload need.
@@ -2196,6 +2180,8 @@ function _doEndWorkout(){
   const done=w.sets[w.ei].filter(s=>s.done);
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
   if(done.length>0)saveWeight(exId,maxW);
+  // Symmetric with _doEndExercise: track stagnation for the final exercise too
+  recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
   if(prog)w.progressions.push(prog);
   showExertionModal(exId,EX[exId]?.n||exId,maxW,prog,()=>finishWorkout());
@@ -2255,12 +2241,12 @@ function swapProgramEx(newId){
 }
 
 function openBuilderSwap(di,ei){
-  S.swapDayIdx=di;S.swapIdx=ei;S.swapCtx='builder';S.swapEqFilter='All';
+  S.swapBuilderDayIdx=di;S.swapIdx=ei;S.swapCtx='builder';S.swapEqFilter='All';
   S.screen='swap';render();
 }
 function swapBuilderEx(newId){
   if(!S.bPreview||S.swapIdx===null)return;
-  S.bPreview[S.swapDayIdx].exIds[S.swapIdx]=newId;
+  S.bPreview[S.swapBuilderDayIdx].exIds[S.swapIdx]=newId;
   S.swapIdx=null;S.screen='builder';render();
 }
 function addAccessory(exId){
@@ -4072,7 +4058,7 @@ function rSwap(){
   // Resolve which exercise is being replaced
   let exId;
   if(isBuilder){
-    exId=S.bPreview?.[S.swapDayIdx]?.exIds[S.swapIdx];
+    exId=S.bPreview?.[S.swapBuilderDayIdx]?.exIds[S.swapIdx];
   } else if(isProgram){
     exId=getDayProgram(ap?.[S.activeDayIdx]?.id)[S.swapIdx];
   } else {
@@ -4093,7 +4079,7 @@ function rSwap(){
   const selectFn=isBuilder?'swapBuilderEx':isProgram?'swapProgramEx':'swapExercise';
 
   const contextLabel=isBuilder
-    ?`Preview · ${S.bPreview?.[S.swapDayIdx]?.label||''}`
+    ?`Preview · ${S.bPreview?.[S.swapBuilderDayIdx]?.label||''}`
     :isProgram?'Program':'Active workout';
 
   const sameGroup=Object.entries(EX)
@@ -4922,12 +4908,12 @@ function rSettings(){
           <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preset.name)}</div>
           <div style="font-size:10px;color:var(--txt3)">${preset.prog.length} days · saved ${new Date(preset.savedDate).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
         </div>
-        <button onclick="if(confirm('Load \'${esc(preset.name).replace(/'/g,'&apos;')}\' as your active program?')){loadProgramPreset(${i});render();}"
+        <button onclick="confirmLoadPreset(${i})"
           style="background:none;border:1px solid var(--border2);color:var(--txt2);
           padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;flex-shrink:0">
           Load
         </button>
-        <button onclick="if(confirm('Delete this preset?')){deleteProgramPreset(${i});render();}"
+        <button onclick="confirmDeletePreset(${i})"
           style="background:none;border:1px solid #5a2020;color:#a02020;
           padding:5px 8px;border-radius:6px;font-size:11px;cursor:pointer;flex-shrink:0">
           ✕
@@ -4971,6 +4957,23 @@ function rSettings(){
     Auto-progression · 16 programs · Custom splits
   </div>
 </div>`;
+}
+
+function confirmLoadPreset(idx){
+  const p=getSavedPrograms()[idx];
+  if(!p)return;
+  if(confirm(`Load "${p.name}" as your active program?`)){
+    loadProgramPreset(idx);
+    render();
+  }
+}
+function confirmDeletePreset(idx){
+  const p=getSavedPrograms()[idx];
+  if(!p)return;
+  if(confirm(`Delete preset "${p.name}"?`)){
+    deleteProgramPreset(idx);
+    render();
+  }
 }
 
 function showSavePresetPrompt(){
