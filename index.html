@@ -521,6 +521,50 @@ const EX = {
 
   // Total-body strength
   'db-farm':  {n:"Farmer's Carry",         mg:'Back',      eq:'Heavy DB / Trap Bar',compound:true,  alt:['db-row','bb-row']},
+
+  // ───── Library Expansion Pack v2 — Variety Additions (24 exercises) ─────
+  // Most-cited variations to conventional lifts: angle/grip variants, partial-range
+  // and specialty movements, and rotational/anti-rotational core.
+
+  // Chest variations
+  'db-dec':   {n:'Decline DB Press',       mg:'Chest',     eq:'DB + Decline Bench',         compound:true,  alt:['db-flat','bb-bench','ares-cp']},
+  'm-pecd':   {n:'Pec Deck',               mg:'Chest',     eq:'Pec Deck Machine',           compound:false, alt:['cb-fly','db-fly','halo-fly']},
+  'bb-larsen':{n:'Larsen Press',           mg:'Chest',     eq:'Barbell + Bench',            compound:true,  alt:['bb-bench','bb-pbench','bb-floor']},
+
+  // Back — rows, traps, partials
+  'bb-pen':   {n:'Pendlay Row',            mg:'Back',      eq:'Barbell',                    compound:true,  alt:['bb-row','tbar-row','db-row']},
+  'bb-shrug': {n:'Barbell Shrug',          mg:'Back',      eq:'Barbell',                    compound:false, alt:['db-shrug','bb-rack']},
+  'db-shrug': {n:'DB Shrug',               mg:'Back',      eq:'Dumbbells',                  compound:false, alt:['bb-shrug']},
+  'bb-rack':  {n:'Rack Pull',              mg:'Back',      eq:'Barbell + Power Rack',       compound:true,  alt:['bb-dl','bb-shrug','tbar-row']},
+
+  // Legs — alternative loading
+  'bb-zerch': {n:'Zercher Squat',          mg:'Legs',      eq:'Barbell + Elbow Pad',        compound:true,  alt:['bb-fsq','bb-sq','bb-boxsq']},
+  'm-belt':   {n:'Belt Squat',             mg:'Legs',      eq:'Belt Squat Machine',         compound:true,  alt:['bb-sq','ares-hack','ares-lp']},
+  'm-adduct': {n:'Hip Adduction',          mg:'Legs',      eq:'Adduction Machine / Cable',  compound:false, alt:['db-bsplit']},
+
+  // Posterior — hinge variations
+  'bb-sndl':  {n:'Snatch-Grip Deadlift',   mg:'Posterior', eq:'Barbell',                    compound:true,  alt:['bb-dl','bb-defdl','bb-rack']},
+  'bb-sldl':  {n:'Stiff-Leg Deadlift',     mg:'Posterior', eq:'Barbell',                    compound:true,  alt:['bb-rdl','db-rdl','bb-gm']},
+  'kb-swing': {n:'Kettlebell Swing',       mg:'Posterior', eq:'Kettlebell',                 compound:true,  alt:['bb-rdl','cb-pt']},
+  'cb-pt':    {n:'Cable Pull-Through',     mg:'Posterior', eq:'Cable + Rope',               compound:false, alt:['bb-rdl','db-rdl','kb-swing']},
+
+  // Shoulders — press variations & rear delt
+  'db-arnold':{n:'Arnold Press',           mg:'Shoulders', eq:'Dumbbells + Bench',          compound:true,  alt:['db-ohp','db-sohp','bb-ohp']},
+  'lm-press': {n:'Landmine Press',         mg:'Shoulders', eq:'Barbell + Landmine',         compound:true,  alt:['bb-ohp','db-ohp','db-sohp']},
+  'cb-rdfly': {n:'Cable Rear Delt Fly',    mg:'Shoulders', eq:'Dual Cable',                 compound:false, alt:['db-rdfly','cb-fp']},
+
+  // Biceps — peak isolation & grip variants
+  'db-conc':  {n:'Concentration Curl',     mg:'Biceps',    eq:'Dumbbell + Bench',           compound:false, alt:['db-curl','preach']},
+  'db-spider':{n:'Spider Curl',            mg:'Biceps',    eq:'Dumbbell + Incline Bench',   compound:false, alt:['preach','db-incc']},
+  'bb-rev':   {n:'Reverse Curl',           mg:'Biceps',    eq:'EZ-bar or Dumbbells',        compound:false, alt:['bb-curl','db-curl','halo-bc']},
+
+  // Triceps — compound & DB variant
+  'bb-jm':    {n:'JM Press',               mg:'Triceps',   eq:'Barbell + Bench',            compound:true,  alt:['bb-skull','bb-cgbp','db-tex']},
+  'db-tate':  {n:'Tate Press',             mg:'Triceps',   eq:'Dumbbells + Bench',          compound:false, alt:['db-tex','bb-skull','halo-te']},
+
+  // Core — McGill Big 3 & rotational
+  'co-bd':    {n:'Bird Dog',               mg:'Core',      eq:'Bodyweight',                 compound:false, alt:['co-plank','bw-splank']},
+  'cb-wood':  {n:'Cable Woodchopper',      mg:'Core',      eq:'Cable',                      compound:false, alt:['cb-pal','co-plank']},
 };
 
 // Muscle group → exercises ordered compound-first, then accessories
@@ -4813,6 +4857,120 @@ const EX_INFO = {
     equip:'Heavy dumbbells, kettlebells, trap bar, or specialized farmer\'s handles',
     desc:'Walking carry with heavy implements at the sides. Winwood et al. (2014) on strongman training found significant correlation with 1RM deadlift independent of other strength markers. McGill has written extensively about loaded carry\'s role in spinal stability.',
     cues:['Stand tall — chest up, shoulders pulled back and down','Implements at sides, do not let them swing','Short, deliberate steps — quality of gait matters more than speed','Brace the core throughout — anti-lateral flexion is the key adaptation','Program by distance and load (e.g., 4 × 30 yards @ 50% BW per hand)']},
+
+  // ───── Variety Pack — Descriptions & Coaching Cues ─────
+
+  // Chest variations
+  'db-dec':{pri:['Chest'],sec:['Triceps','Shoulders'],
+    equip:'Dumbbells · Decline bench (15–30°)',
+    desc:'Pressing with the bench declined biases the sternal (lower) fibers of the pectoralis major. Trebs et al. (2010) showed moderate differential lower-pec fiber recruitment vs flat pressing at this angle. Completes the upper/flat/lower angle coverage of chest pressing.',
+    cues:['Bench angle 15–30° — steeper declines compromise press path','Dumbbells start at lower chest, palms forward','Press to full lockout above the lower chest, not the face','Maintain scapular retraction throughout','Use a spotter for setup — dumbbells are awkward to grab from decline']},
+  'm-pecd':{pri:['Chest'],sec:[],
+    equip:'Pec deck machine',
+    desc:'Seated horizontal chest fly with arms supported on machine pads. Solem-Bertoft et al. (1993) noted the supported arm position reduces glenohumeral shear vs free-weight flies, allowing higher fatigue accumulation safely.',
+    cues:['Seat height set so pads align with mid-chest','Press pads together with the chest, not by squeezing forearms','Pause at the contracted position for 1 second','Slow eccentric — avoid letting the weight pull arms back rapidly','Use to finish chest work after compound presses']},
+  'bb-larsen':{pri:['Chest'],sec:['Triceps','Shoulders'],
+    equip:'Barbell · Flat bench · Spotter recommended',
+    desc:'Bench press performed with feet planted on the bench rather than the floor (or held in the air). Removes leg drive entirely, exposing pure upper-body pressing strength. Standard powerlifting accessory for lifters whose competition bench relies on excessive leg drive.',
+    cues:['Feet planted on the bench or held in the air','Maintain upper-back tightness and scapular retraction','Brace core hard — without leg drive, abs do more work','Lower bar with full control to lower chest','No leg-driven cheating — if feet move, weight is too heavy']},
+
+  // Back — rows, traps, partials
+  'bb-pen':{pri:['Back'],sec:['Biceps'],
+    equip:'Barbell',
+    desc:'Strict barbell row variant with a dead-stop on the floor each rep, popularized by Glenn Pendlay. Eliminates the stretch-shortening cycle and forces explosive concentric from rest. Functionally distinct from touch-and-go barbell rows.',
+    cues:['Bar starts on the floor; torso parallel to floor','Pull explosively to the lower chest / upper abdomen','Each rep starts from a dead stop — no bouncing the bar','Reset position between reps if back angle drifts','Pull with the elbows, not the hands']},
+  'bb-shrug':{pri:['Back'],sec:[],
+    equip:'Barbell',
+    desc:'Direct upper trap development. Schoenfeld (2016) hypertrophy framework treats upper traps as a muscle group needing dedicated volume — typically underdeveloped even by heavy deadlifting in most lifters.',
+    cues:['Bar held at thigh height with overhand or mixed grip','Elevate the shoulders straight up toward the ears','Do NOT roll the shoulders — straight up and straight down','Pause for 1 second at the top','Slow controlled descent — no momentum bouncing']},
+  'db-shrug':{pri:['Back'],sec:[],
+    equip:'Heavy dumbbells',
+    desc:'Dumbbell variant of the barbell shrug. The DB position allows greater ROM — dumbbells travel past the hip more freely than a barbell. Useful when barbell shrug ROM is limited by forearm or grip.',
+    cues:['Dumbbells held at sides with neutral grip','Same vertical-only shoulder elevation as barbell shrug','Greater stretch at the bottom is the main advantage','Pause and squeeze at the top','Use straps if grip fails before the traps do']},
+  'bb-rack':{pri:['Back'],sec:['Posterior'],
+    equip:'Barbell · Power rack with pins at mid-shin to knee height',
+    desc:'Partial deadlift from elevated pins. Trains the lockout portion and dramatically increases trainable load. Andersen et al. (2018) measured higher upper-back EMG than full-range deadlifts at matched intensity.',
+    cues:['Pin height varies the stimulus: below knee = upper back, above knee = traps and lockout','Setup identical to deadlift — back rigid, lats engaged','Pull explosively from the pins','Lower the bar back to the pins under control','Use straps for heavy loads to bias the upper-back work']},
+
+  // Legs — alternative loading
+  'bb-zerch':{pri:['Legs'],sec:['Back','Core'],
+    equip:'Barbell held in elbow crease · Towel or sleeve for padding',
+    desc:'Front-loaded squat with the barbell held in the crook of the elbows. Demands enormous upper-back and core bracing. Severely uncomfortable initially but produces unique adaptations for posture and bracing under load.',
+    cues:['Pad elbows with a thick towel or specialty sleeve','Hands held together in front of face, elbows pinned tight','Upright torso throughout — chest stays up like a front squat','Squat to depth without letting elbows drop','Limit ego — Zercher loads are far lighter than back squat']},
+  'm-belt':{pri:['Legs'],sec:['Posterior'],
+    equip:'Belt squat machine',
+    desc:'Squat with load suspended from a belt at the waist, removing spinal compression entirely. Originally a Westside Barbell tool. Allows continued squatting volume even with back fatigue or injury.',
+    cues:['Belt sits at the iliac crest, not the waistband','Stand on the platform with full foot contact','Squat to standard depth — same range as back squat','Drive through midfoot without spinal load to limit you','Excellent for high-volume leg work between heavy squat sessions']},
+  'm-adduct':{pri:['Legs'],sec:[],
+    equip:'Hip adduction machine or low cable + ankle strap',
+    desc:'Direct adductor training. Tyler et al. (2002) is the foundational study showing adductor strengthening reduces groin strain incidence — particularly relevant for lifters who squat heavy or play any field/court sport.',
+    cues:['Sit upright with back fully supported on machine','Pads against inner thighs — not at the knee joint','Squeeze legs together against resistance with control','Pause at peak contraction','Slow eccentric — let adductors stretch fully before next rep']},
+
+  // Posterior — hinge variations
+  'bb-sndl':{pri:['Posterior'],sec:['Back','Legs'],
+    equip:'Barbell',
+    desc:'Conventional deadlift with extreme wide (snatch) grip. Forces deeper hip flexion at the start position and dramatically increases upper-back demand. Klemp et al. (2021) showed superior trap and upper-back EMG vs conventional grip deadlifts.',
+    cues:['Grip set so the bar would land at hip crease in a snatch','Hips lower than conventional setup — deeper knee bend','Upper back must be MAXIMALLY tight — gravity wants to pull you forward','Pull explosively; bar stays close to body','Use straps for heavy loads — grip width compromises hook strength']},
+  'bb-sldl':{pri:['Posterior'],sec:['Back'],
+    equip:'Barbell',
+    desc:'Locked-knee variant of the deadlift hinge. Often confused with RDL but biomechanically distinct: locked knees produce maximum hamstring stretch and minimum quad/glute contribution. The original bodybuilding-era stiff-leg of the 1970s.',
+    cues:['Knees fully locked throughout the entire movement','Hinge entirely at the hip — back stays flat, not rounded','Feel deep hamstring stretch at the bottom','Use moderate weight — much lighter than conventional DL','Do NOT confuse with RDL — RDL keeps slight knee bend']},
+  'kb-swing':{pri:['Posterior'],sec:['Legs','Core'],
+    equip:'Kettlebell',
+    desc:'Explosive hip hinge with traction at the bottom. Lake & Lauder (2012) on power output: kettlebell swings produce horizontal force and power comparable to vertical jump training, making them a unique stimulus separate from any deadlift variant.',
+    cues:['Hike the kettlebell back between the legs aggressively','Snap hips forward explosively to drive the bell up','Arms are passive ropes — power comes from hips, not shoulders','Bell rises to chest or eye level (Russian style) or overhead (American)','Glutes lock out hard at the top of each rep']},
+  'cb-pt':{pri:['Posterior'],sec:['Core'],
+    equip:'Cable column · Rope attachment · Low pulley',
+    desc:'Hip hinge against cable resistance. Bret Contreras popularized this as a hinge-teaching tool — the resistance vector provides constant tension through the entire hip extension ROM. Easier to learn than RDL for hinge-naive lifters.',
+    cues:['Face away from the cable; rope passed between legs','Walk forward until cable is taut, feet shoulder-width','Hinge at the hips — knees soft but not bending more','Drive hips forward to lock out, squeeze glutes at the top','Slow eccentric — let cable pull hips back to a deep stretch']},
+
+  // Shoulders — press variations & rear delt
+  'db-arnold':{pri:['Shoulders'],sec:['Triceps'],
+    equip:'Dumbbells · Bench with back support',
+    desc:'Dumbbell press starting with palms facing the body and rotating to palms forward during the press. Trains anterior and lateral deltoid heads through a longer ROM than standard DB press; the rotational element produces distinct activation patterns.',
+    cues:['Dumbbells start at shoulder height, palms facing the body','Rotate the wrists outward as the dumbbells rise','At full lockout, palms face forward — same as standard press top','Reverse the rotation on the way down','Use 70–80% of standard DB press weight — rotation adds shoulder demand']},
+  'lm-press':{pri:['Shoulders'],sec:['Triceps','Core'],
+    equip:'Barbell + landmine attachment',
+    desc:'Pressing a barbell anchored at one end in a landmine attachment. The diagonal press path reduces glenohumeral compression and impingement risk vs strict overhead. Linthorne (2018) shows reduced shoulder shear at matched load.',
+    cues:['Stand facing the landmine in a split stance','Hold the bar with one or both hands at shoulder height','Press up and forward in a diagonal arc','Avoid leaning back — keep ribs over hips','Excellent for lifters with overhead mobility limitations']},
+  'cb-rdfly':{pri:['Shoulders'],sec:['Back'],
+    equip:'Dual cable column',
+    desc:'Constant-tension rear delt isolation. Schoenfeld et al. (2020) on resistance profile: cable provides peak tension at the contracted position (when rear delts are shortest), unlike the DB version which loads heaviest at the stretched position.',
+    cues:['Stand between cables; grasp opposite-side handles (cross-grip)','Slight elbow bend maintained throughout','Pull hands apart in a wide arc — squeeze rear delts','Pause at peak contraction','Resist the cable on the eccentric — slow tempo']},
+
+  // Biceps — peak isolation & grip variants
+  'db-conc':{pri:['Biceps'],sec:[],
+    equip:'Dumbbell · Flat bench',
+    desc:'Seated single-arm curl with elbow braced against inner thigh. Boeckh-Behrens et al. (2015) found concentration curls produce the highest biceps EMG of any curl variation tested. The elbow lock eliminates shoulder flexion and forces pure elbow flexion.',
+    cues:['Sit with feet wide; elbow firmly braced against inner thigh','Arm hangs straight down; dumbbell at floor level','Curl without lifting elbow off the thigh','Supinate the wrist as you curl (turn pinky toward shoulder)','Strict tempo — no body english']},
+  'db-spider':{pri:['Biceps'],sec:[],
+    equip:'Dumbbells · Incline bench (45–60°)',
+    desc:'Chest-down on an incline bench, arms hanging straight down, curling without elbow drift. Like a preacher curl but with the arm fully vertical, producing maximum biceps shortening at the top. Eliminates body english more completely than standing variants.',
+    cues:['Lie chest-down on incline bench, arms hanging straight','Dumbbells at lowest position with full bicep stretch','Curl without letting elbows drift forward','Squeeze at the top for 1 second','Slow eccentric back to dead hang']},
+  'bb-rev':{pri:['Biceps'],sec:[],
+    equip:'EZ-bar or dumbbells',
+    desc:'Curl with pronated (palms-down) grip. Targets brachioradialis and forearm flexors — an often-overlooked muscle group that becomes a deadlift grip limiter for many intermediate lifters.',
+    cues:['Grip the bar with palms facing down','Elbows pinned to sides — no flaring','Curl strictly without using momentum','Use lighter weight than supinated curls (~60–70%)','Pair with grip-intensive training days']},
+
+  // Triceps — compound & DB variant
+  'bb-jm':{pri:['Triceps'],sec:['Chest'],
+    equip:'Barbell · Flat bench · Spotter recommended',
+    desc:'Hybrid skull crusher / close-grip bench, popularized by Dave Tate. Bar lowers toward upper chest with elbows tracking forward, allowing far higher weights than skull crushers. Standard in Westside programming.',
+    cues:['Grip width same as close-grip bench (1.5× shoulder width)','Lower bar toward chin/upper chest with elbows traveling forward','Stop about 2 inches above the chest','Press up by extending elbows, not pushing into the bench','Hybrid pattern — feels neither like skull crusher nor close-grip']},
+  'db-tate':{pri:['Triceps'],sec:[],
+    equip:'Dumbbells · Flat bench',
+    desc:'Dumbbell extension variant popularized by Dave Tate. Elbows flared out wide; dumbbells lowered to the chest rather than forehead. Trains the long head from a more stretched position while allowing heavier loading than traditional skull crushers.',
+    cues:['Lie on flat bench with dumbbells held overhead, palms facing each other','Elbows flare out to the sides as dumbbells descend','Dumbbells lower to the chest, NOT the forehead','Press back up by extending the elbows','Use lighter weight than standard DB skull crusher — feels awkward initially']},
+
+  // Core — McGill Big 3 & rotational
+  'co-bd':{pri:['Core'],sec:['Back','Posterior'],
+    equip:'Bodyweight · Mat',
+    desc:'Quadruped extension of opposite arm and leg. Completes the McGill Big 3 alongside curl-up and side plank. McGill (2015) showed this combination produces superior spinal endurance and resilience compared to crunches.',
+    cues:['Start on hands and knees, hands under shoulders, knees under hips','Extend opposite arm and leg — right arm with left leg, etc.','Hold the extended position for 5–10 seconds','Avoid letting the hips rotate or sag','Return to start under control before switching sides']},
+  'cb-wood':{pri:['Core'],sec:[],
+    equip:'Cable column · D-handle or rope',
+    desc:'Diagonal cable rotation across the body. The primary rotational core movement. McGill differentiates explosive rotation (this) from anti-rotation (Pallof press) — including both completes the rotational coverage.',
+    cues:['Stand sideways to cable; grasp handle with both hands','Pull/rotate from high to low diagonally across the body','Pivot the rear foot to allow full rotation through the hip','Power comes from hips and core, not arms','Reverse direction (low-to-high chop) for opposite emphasis']},
 };
 
 // =====================================================================
