@@ -2756,37 +2756,60 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
       </div>
     </div>
   </div>`:''}
-  <div style="font-size:13px;color:var(--txt2);text-align:center;margin:${progEvent?'10px':'16px'} 0 10px">Rate overall exertion</div>
-  <div style="display:flex;gap:4px;margin-bottom:8px;padding:0 2px">
-    <div style="flex:2;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
-      text-transform:uppercase;color:#22c55e">Easy</div>
-    <div style="flex:2;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
-      text-transform:uppercase;color:#f59e0b">Moderate</div>
-    <div style="flex:1;text-align:center;font-size:11px;font-weight:700;letter-spacing:.1em;
-      text-transform:uppercase;color:#e22020">Hard</div>
+  <div style="font-size:13px;color:var(--txt2);text-align:center;margin:${progEvent?'10px':'16px'} 0 6px">Rate overall exertion</div>
+  <div style="font-size:10px;color:var(--txt3);text-align:center;margin-bottom:12px;font-weight:600;letter-spacing:.04em">
+    RPE / RIR (Reps in Reserve)
   </div>
-  <div style="display:flex;gap:6px;margin-bottom:14px;width:100%">
-    ${[5,6,7,8,9,10].map(r=>{
-      const col=r<=6?'#22c55e':r<=8?'#f59e0b':'#e22020';
-      const lblTxt=r===5?'easy':r===7?'3 reps left':r===9?'1 left':r===10?'max':'';
-      return`<button onclick="selectExertion(${r},'${exId}',${weight})"
-        style="flex:1 1 0;min-width:0;min-height:88px;border-radius:12px;border:2px solid ${col}55;
+
+  <!-- 2×3 grid: row 1 = Easy/Moderate (5,6,7), row 2 = Hard/Max (8,9,10) -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+    ${[
+      {rpe:5,rir:'5+ RIR',zone:'easy'},
+      {rpe:6,rir:'4 RIR',zone:'easy'},
+      {rpe:7,rir:'3 RIR',zone:'moderate'},
+      {rpe:8,rir:'2 RIR',zone:'moderate'},
+      {rpe:9,rir:'1 RIR',zone:'hard'},
+      {rpe:10,rir:'MAX',zone:'hard'}
+    ].map(b=>{
+      const col = b.zone==='easy' ? '#22c55e' : b.zone==='moderate' ? '#f59e0b' : '#e22020';
+      return`<button onclick="if(navigator.vibrate)navigator.vibrate(15);selectExertion(${b.rpe},'${exId}',${weight})"
+        style="min-height:88px;border-radius:14px;border:2px solid ${col}66;
         background:${col}22;color:${col};cursor:pointer;display:flex;flex-direction:column;
-        align-items:center;justify-content:center;padding:6px 2px;gap:4px;line-height:1"
-        ontouchstart="this.style.transform='scale(0.93)'" ontouchend="this.style.transform=''">
-        <span style="font-size:26px;font-weight:800">${r}</span>
-        ${lblTxt?`<span style="font-size:9px;font-weight:600;opacity:.8;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${lblTxt}</span>`:''}
-      </button>`;}).join('')}
+        align-items:center;justify-content:center;padding:8px 4px;gap:5px;line-height:1;
+        font-family:inherit;transition:transform .1s"
+        ontouchstart="this.style.transform='scale(0.94)'"
+        ontouchend="this.style.transform=''"
+        ontouchcancel="this.style.transform=''">
+        <span style="font-size:34px;font-weight:800;font-variant-numeric:tabular-nums">${b.rpe}</span>
+        <span style="font-size:11px;font-weight:700;opacity:.85;letter-spacing:.04em;
+          font-variant-numeric:tabular-nums">${b.rir}</span>
+      </button>`;
+    }).join('')}
   </div>
+
+  <!-- Zone reference legend (small, beneath the buttons) -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;font-size:10px;color:var(--txt3);
+    justify-content:center;align-items:center;flex-wrap:wrap">
+    <span><span style="color:#22c55e;font-weight:700">●</span> Easy</span>
+    <span style="opacity:.4">·</span>
+    <span><span style="color:#f59e0b;font-weight:700">●</span> Moderate</span>
+    <span style="opacity:.4">·</span>
+    <span><span style="color:#e22020;font-weight:700">●</span> Hard</span>
+  </div>
+
   <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
     <textarea id="ex-note-field" placeholder="Note (optional): form cue, how it felt…"
       rows="2"
       style="width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--txt);
       font-size:13px;padding:10px 12px;border-radius:8px;outline:none;resize:none;
-      font-family:inherit;box-sizing:border-box;margin-bottom:8px"></textarea>
+      font-family:inherit;box-sizing:border-box;margin-bottom:10px"></textarea>
   </div>
-  <button onclick="selectExertion(null,'${exId}',${weight})"
-    style="width:100%;background:none;border:none;color:var(--txt3);font-size:13px;cursor:pointer;padding:8px;text-decoration:underline">
+
+  <!-- Proper Skip button (outline, de-emphasized but discoverable) -->
+  <button onclick="if(navigator.vibrate)navigator.vibrate(10);selectExertion(null,'${exId}',${weight})"
+    style="width:100%;background:none;border:1.5px solid var(--border2);color:var(--txt2);
+    padding:13px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;
+    font-family:inherit;letter-spacing:.02em">
     Skip rating
   </button>
 </div>`;
