@@ -3388,6 +3388,7 @@ function render(){
     case'swap':      sc.innerHTML=rSwap();break;
     case'addEx':     sc.innerHTML=rAddEx();break;
     case'settings':   sc.innerHTML=rSettings();break;
+    case'knowledge':  sc.innerHTML=rKnowledge();break;
   }
   if(S.screen==='timer'){
     const R=90,circ=2*Math.PI*R;
@@ -4190,6 +4191,28 @@ function rActive(){
   <div id="w-elapsed" style="font-size:13px;color:var(--txt2);font-variant-numeric:tabular-nums">${fmtElapsed()}</div>
 </div>
 
+${(()=>{
+  // Overall workout progress indicator (recommendation #14)
+  const totalSets=w.sets.reduce((a,sets)=>a+sets.length,0);
+  const doneSetsAll=w.sets.reduce((a,sets)=>a+sets.filter(s=>s.done).length,0);
+  const exDone=w.exIds.filter((_,i)=>w.sets[i].every(s=>s.done)).length;
+  const pct=totalSets>0?Math.round(doneSetsAll/totalSets*100):0;
+  return`<div style="margin:0 16px 10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3)">
+        Workout progress
+      </span>
+      <span style="font-size:10px;color:var(--txt2);font-variant-numeric:tabular-nums">
+        ${exDone}/${w.exIds.length} exercises · ${doneSetsAll}/${totalSets} sets
+      </span>
+    </div>
+    <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:${modeC};border-radius:3px;
+        transition:width .35s ease-out"></div>
+    </div>
+  </div>`;
+})()}
+
 <div class="ex-scroll">
   ${w.exIds.map((eid,i)=>{
     const allDone=w.sets[i].every(s=>s.done);const isCur=i===w.ei;
@@ -4457,6 +4480,184 @@ function rTimer(){
 // =====================================================================
 // HISTORY
 // =====================================================================
+
+
+// ── Knowledge Library (recommendation 16) ──────────────────────────────────
+// Curated evidence-based references, organized by category. External links open
+// in a new tab. Research papers link to stable PubMed/DOI pages.
+const KNOWLEDGE_LIBRARY = {
+  framework: {
+    title: 'The Framework This App Uses',
+    blurb: 'The evidence base behind the features in this app — volume targets, autoregulation, deload timing, and 1RM estimation all come from these sources.',
+    items: [
+      {name:'The Muscle and Strength Pyramids (3rd Ed.)', author:'Helms, Valdez, Morgan',
+       desc:'The priority hierarchy this app follows: adherence → volume → intensity → frequency → progression. RPE autoregulation framework.',
+       link:'https://muscleandstrengthpyramids.com/', cost:'~$80 both volumes', tier:1},
+      {name:'Scientific Principles of Hypertrophy Training', author:'Israetel, Hoffmann, Smith (RP)',
+       desc:'MEV/MAV/MRV volume landmarks and mesocycle design — the basis for the 6-week volume trend chart and deload prompts.',
+       link:'https://renaissanceperiodization.com/', cost:'~$30 ebook', tier:1},
+      {name:'RIR-Based RPE Scale for Resistance Training', author:'Helms et al. (2016)',
+       desc:'The RPE/RIR mapping used in the exertion rating screen (RPE 8 = 2 RIR, etc.).',
+       link:'https://pubmed.ncbi.nlm.nih.gov/27531969/', cost:'Free abstract', tier:1},
+      {name:'Predicting 1RM from Reps-to-Fatigue', author:'Mayhew et al. / Brzycki',
+       desc:'The estimated-1RM formulas (Epley and Brzycki) the app offers, with the 12-rep cap on reliability.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/8295678/', cost:'Free abstract', tier:1},
+    ]
+  },
+  books: {
+    title: 'Foundational Reading',
+    blurb: 'The core library for evidence-based training. If you read only a few things, start here.',
+    items: [
+      {name:'Practical Programming for Strength Training (3rd Ed.)', author:'Rippetoe & Baker',
+       desc:'Linear progression, intermediate programming, Texas Method. Strong on biomechanics and progression structure.',
+       link:'https://aasgaardco.com/', cost:'~$30', tier:1},
+      {name:'Starting Strength (3rd Ed.)', author:'Mark Rippetoe',
+       desc:'The textbook reference for barbell technique on squat, bench, deadlift, press. Bar path and bracing cues.',
+       link:'https://startingstrength.com/', cost:'~$30', tier:1},
+      {name:'Science and Practice of Strength Training', author:'Zatsiorsky & Kraemer',
+       desc:'Foundational periodization theory. Dense but essential for serious programming beyond linear models.',
+       link:'https://us.humankinetics.com/', cost:'~$80', tier:2},
+      {name:'Back Mechanic', author:'Stuart McGill',
+       desc:'Consumer-facing spine health and lumbar stability. Source of the McGill Big 3 (now in this app library).',
+       link:'https://www.backfitpro.com/', cost:'~$35', tier:2},
+    ]
+  },
+  online: {
+    title: 'Online Resources',
+    blurb: 'Ongoing publications and research reviews. The best way to stay current.',
+    items: [
+      {name:'Stronger by Science', author:'Nuckols, Trexler, et al.',
+       desc:'Best long-form analysis of training research. Free articles, calculators, and the free SBS program bundle.',
+       link:'https://www.strongerbyscience.com/', cost:'Free', tier:1},
+      {name:'MASS Research Review', author:'Helms, Trexler, Zourdos, Colenso-Semple',
+       desc:'Monthly review of new strength/physique research with practical interpretation. The gold standard for staying current.',
+       link:'https://massresearchreview.com/', cost:'~$25–30/mo', tier:1},
+      {name:'Examine.com', author:'Examine team',
+       desc:'Conservative, evidence-based supplement and nutrition database. Useful for creatine, caffeine, beta-alanine.',
+       link:'https://examine.com/', cost:'Free + paid tiers', tier:2},
+      {name:'Iron Culture Podcast', author:'Eric Helms & Omar Isuf',
+       desc:'The best evidence-based training podcast. Deep dives on programming, research, and training philosophy.',
+       link:'https://www.youtube.com/@IronCulture', cost:'Free', tier:2},
+      {name:'MASS Research Review (YouTube)', author:'MASS team',
+       desc:'Free evidence-based content from the MASS authors — a no-cost way to sample their analysis style.',
+       link:'https://www.youtube.com/@MASSResearchReview', cost:'Free', tier:2},
+    ]
+  },
+  research: {
+    title: 'Landmark Research',
+    blurb: 'Primary sources cited in this app\'s exercise descriptions. Links go to PubMed abstracts (not all are open-access full text).',
+    items: [
+      {name:'Mechanisms of Muscle Hypertrophy', author:'Schoenfeld (2010)',
+       desc:'The mechanistic foundation: mechanical tension, metabolic stress, muscle damage.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/20847704/', cost:'Free abstract', tier:1},
+      {name:'Resistance Training Frequency Meta-Analysis', author:'Schoenfeld, Ogborn, Krieger (2016)',
+       desc:'Frequency and hypertrophy — basis for the per-muscle frequency alerts in this app.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/27102172/', cost:'Free abstract', tier:1},
+      {name:'Volume Dose-Response for Hypertrophy', author:'Schoenfeld, Ogborn, Krieger (2017)',
+       desc:'The volume-response curve underpinning the weekly set targets in the volume trend.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/27433992/', cost:'Free abstract', tier:1},
+      {name:'Hip Thrust vs Squat EMG', author:'Contreras et al. (2015)',
+       desc:'Gluteus maximus activation — why the hip thrust is the gold-standard direct glute exercise.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/25946109/', cost:'Free abstract', tier:2},
+      {name:'Overhead vs Neutral Triceps Hypertrophy', author:'Maeo et al. (2023)',
+       desc:'Stretched-position training for the triceps long head — basis for the overhead cable extension cue.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/35819335/', cost:'Free abstract', tier:2},
+      {name:'Sumo vs Conventional Deadlift', author:'Escamilla et al. (2000)',
+       desc:'Different muscular demand patterns — why sumo and conventional are functionally distinct lifts.',
+       link:'https://pubmed.ncbi.nlm.nih.gov/10912892/', cost:'Free abstract', tier:2},
+    ]
+  },
+  authors: {
+    title: 'Authors Worth Following',
+    blurb: 'The people producing the most rigorous evidence-based content in the field.',
+    items: [
+      {name:'Eric Helms', author:'MASS, M&S Pyramids, Iron Culture',
+       desc:'The most rigorous evidence interpreter in the field. Natural bodybuilding coach + researcher.',
+       link:'https://www.youtube.com/@IronCulture', cost:'Free', tier:1},
+      {name:'Greg Nuckols', author:'Stronger by Science',
+       desc:'The strongest writer/analyzer in the evidence-based community. Powerlifter + scientist.',
+       link:'https://www.strongerbyscience.com/', cost:'Free', tier:1},
+      {name:'Mike Israetel', author:'Renaissance Periodization',
+       desc:'Co-founder of RP. Strong on volume/recovery frameworks. Occasionally overreaches but consistently insightful.',
+       link:'https://www.youtube.com/@RenaissancePeriodization', cost:'Free', tier:2},
+      {name:'Jeff Nippard', author:'YouTube',
+       desc:'Most accessible serious evidence-based content. Good for visual exercise breakdowns.',
+       link:'https://www.youtube.com/@JeffNippard', cost:'Free', tier:2},
+      {name:'Bret Contreras', author:'The Glute Guy',
+       desc:'Gold standard for glute and posterior chain training research.',
+       link:'https://bretcontreras.com/', cost:'Free', tier:2},
+      {name:'Stuart McGill', author:'Backfitpro',
+       desc:'Spine biomechanics and lumbar stability. Source of the McGill Big 3 stability framework.',
+       link:'https://www.backfitpro.com/', cost:'Free articles', tier:2},
+    ]
+  }
+};
+
+function rKnowledge(){
+  const cats=Object.entries(KNOWLEDGE_LIBRARY);
+  return`
+<div class="page-head" style="justify-content:space-between;align-items:center">
+  <div style="text-align:left">
+    <div class="page-title"><span>LEARN</span></div>
+    <div class="page-sub">Evidence-based references</div>
+  </div>
+  <button onclick="navTo('settings')" aria-label="Back to settings"
+    style="background:none;border:1px solid var(--border2);color:var(--txt2);
+    font-size:12px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer">Done</button>
+</div>
+<div style="padding:0 16px 30px">
+  <div style="font-size:12px;color:var(--txt3);line-height:1.6;margin-bottom:20px;
+    background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:13px 15px">
+    A curated library, not an exhaustive one. Every entry here is evidence-anchored.
+    Where sources disagree (e.g., optimal volume), that's noted in the field, not hidden.
+    Links open externally.
+  </div>
+  ${cats.map(([key,cat])=>`
+    <div style="margin-bottom:22px">
+      <div style="font-size:13px;font-weight:800;letter-spacing:.01em;color:var(--txt);margin-bottom:3px">
+        ${esc(cat.title)}
+      </div>
+      <div style="font-size:11px;color:var(--txt3);line-height:1.5;margin-bottom:11px">
+        ${esc(cat.blurb)}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${cat.items.map(item=>`
+          <a href="${item.link}" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none;display:block;background:var(--bg2);
+            border:1px solid var(--border);border-radius:10px;padding:12px 14px;
+            -webkit-tap-highlight-color:transparent">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px">
+              <div style="font-size:13px;font-weight:700;color:var(--txt);line-height:1.3;flex:1">
+                ${esc(item.name)}
+              </div>
+              <span style="flex-shrink:0;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;
+                background:${item.tier===1?'var(--red)22':'var(--bg3)'};
+                color:${item.tier===1?'var(--red)':'var(--txt3)'};white-space:nowrap;margin-top:1px">
+                ${item.tier===1?'ESSENTIAL':'DEPTH'}
+              </span>
+            </div>
+            <div style="font-size:11px;color:var(--txt3);font-weight:600;margin-bottom:5px">
+              ${esc(item.author)}${item.cost?` · <span style="color:var(--txt2)">${esc(item.cost)}</span>`:''}
+            </div>
+            <div style="font-size:12px;color:var(--txt2);line-height:1.5">${esc(item.desc)}</div>
+            <div style="font-size:10px;color:var(--mode);margin-top:7px;font-weight:600;
+              display:flex;align-items:center;gap:4px">
+              Open ↗
+            </div>
+          </a>
+        `).join('')}
+      </div>
+    </div>
+  `).join('')}
+  <div style="font-size:10px;color:var(--txt3);text-align:center;line-height:1.6;
+    margin-top:8px;padding:0 10px">
+    Links verified at time of authoring. External sites occasionally move —
+    search the title if a link breaks. Research links go to PubMed abstracts;
+    full text may require institutional access.
+  </div>
+  ${screenWordmark()}
+</div>`;
+}
 
 // ── Calendar History View (recommendation 3) ───────────────────────────────
 // Renders a month grid showing training days color-coded by mode.
@@ -6178,6 +6379,21 @@ function rSettings(){
   <div class="page-title"><span>SETTINGS</span></div>
 </div>
 <div style="padding:0 16px 30px">
+
+  <!-- KNOWLEDGE LIBRARY ENTRY -->
+  <button onclick="navTo('knowledge')" aria-label="Open knowledge library"
+    style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:11px;
+    padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:13px;
+    font-family:inherit;text-align:left;margin-bottom:20px">
+    <div style="font-size:22px;flex-shrink:0">📚</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">Knowledge Library</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">
+        Curated evidence-based references — books, research, and the science behind this app
+      </div>
+    </div>
+    <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
+  </button>
 
   <!-- TRAINING PREFERENCES -->
   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
