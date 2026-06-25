@@ -594,6 +594,358 @@ const MODES = {
 // Rep ceiling triggers auto-progression (+5lbs next session)
 // Strength: 5 reps (top of 2–5), Hypertrophy: 12 reps (top of 8–12), Endurance: 20 reps (top of 12–20)
 const PROG_THRESHOLDS = {strength:5, hypertrophy:12, endurance:20};
+// ── Warmup Calculator ───────────────────────────────────────────────────────
+// Top-set warmup recommendations based on working weight.
+// Sale (1992) on neural priming; Helms's framework on intensity ramping.
+// Schemes are %-based; deduplicated when adjacent sets round to the same weight.
+const WARMUP_SCHEMES = {
+  strength:    [[0.40,8],[0.60,5],[0.75,3],[0.85,2],[0.92,1]],   // 5 sets — full ramp to heavy single
+  hypertrophy: [[0.40,8],[0.60,5],[0.80,3]],                     // 3 sets — moderate ramp
+  endurance:   [[0.50,8],[0.70,5]],                              // 2 sets — light prep
+  minimal:     [[0.50,8],[0.75,3]],                              // 2 sets — quick warmup option
+};
+
+function calcWarmupSets(workingWeight, mode, exId){
+  if(!workingWeight || workingWeight <= 0) return [];
+  const pref = getPrefs().warmupRamp || 'auto';
+  if(pref === 'off') return [];
+  const ex = EX[exId];
+  const isCompound = !!(ex && ex.compound);
+  // Scheme selection
+  let scheme;
+  if(pref === 'full')         scheme = WARMUP_SCHEMES.strength;
+  else if(pref === 'minimal') scheme = WARMUP_SCHEMES.minimal;
+  else {
+    // 'auto': use mode default, but compound moves always get at least 3 sets
+    if(mode === 'strength')          scheme = WARMUP_SCHEMES.strength;
+    else if(isCompound)              scheme = WARMUP_SCHEMES.hypertrophy;
+    else                             scheme = WARMUP_SCHEMES.minimal;
+  }
+  // Floor weight: empty bar for barbell exercises, 5 lb for everything else
+  const isBarbell = !!(ex && (ex.eq||'').toLowerCase().includes('barbell'));
+  const minWeight = isBarbell ? (getPrefs().barWeight || 45) : 5;
+  return scheme.map(([pct, reps]) => {
+    const calcW = Math.round(workingWeight * pct / 5) * 5;
+    return { w: Math.max(minWeight, calcW), reps, pct: Math.round(pct * 100) };
+  }).filter((set, i, arr) => i === 0 || set.w > arr[i-1].w);  // dedupe equal weights after rounding
+}
+
+function getWorkingWeightForExercise(ei){
+  // The reference weight for warmup calculation. Use max planned weight across working sets.
+  if(!S.workout || !S.workout.sets[ei]) return 0;
+  return Math.max(0, ...S.workout.sets[ei].map(s => s.w || 0));
+}
+
+function getWarmupExpanded(ei){
+  if(!S.workout) return false;
+  S.workout.warmupExpanded = S.workout.warmupExpanded || {};
+  if(S.workout.warmupExpanded[ei] === undefined){
+    // Default: expanded if no working sets done yet, collapsed if user has begun working
+    const anyDone = (S.workout.sets[ei] || []).some(s => s.done);
+    S.workout.warmupExpanded[ei] = !anyDone;
+  }
+  return S.workout.warmupExpanded[ei];
+}
+
+function getWarmupsDone(ei){
+  if(!S.workout) return [];
+  S.workout.warmupsDone = S.workout.warmupsDone || {};
+  return S.workout.warmupsDone[ei] || [];
+}
+
+function toggleWarmupExpanded(ei){
+  if(!S.workout) return;
+  S.workout.warmupExpanded = S.workout.warmupExpanded || {};
+  S.workout.warmupExpanded[ei] = !getWarmupExpanded(ei);
+  saveWorkoutState();
+  render();
+}
+
+function toggleWarmupSet(ei, idx){
+  if(!S.workout) return;
+  S.workout.warmupsDone = S.workout.warmupsDone || {};
+  const done = S.workout.warmupsDone[ei] || [];
+  done[idx] = !done[idx];
+  S.workout.warmupsDone[ei] = done;
+  saveWorkoutState();
+  // Light haptic feedback
+  if(navigator.vibrate) navigator.vibrate(15);
+  render();
+}
+
+function rWarmupSection(ei, exId, mode){
+  const workingWt = getWorkingWeightForExercise(ei);
+  const warmups = calcWarmupSets(workingWt, mode, exId);
+  if(!warmups.length) return '';
+  const expanded = getWarmupExpanded(ei);
+  const done = getWarmupsDone(ei);
+  const doneCount = warmups.filter((_,i) => done[i]).length;
+  const allDone = doneCount === warmups.length;
+  // Compact header when all done; full when in progress
+  return `
+  <div style="border-bottom:1px solid var(--border)">
+    <button onclick="toggleWarmupExpanded(${ei})" style="
+      width:100%;background:none;border:none;color:var(--txt);
+      padding:10px 16px;display:flex;justify-content:space-between;align-items:center;
+      cursor:pointer;font-family:inherit;text-align:left">
+      <div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.08em;
+          text-transform:uppercase;color:${allDone?'#22c55e':'var(--txt3)'}">
+          ${allDone?'✓ Warmup':'Warmup'}
+        </span>
+        <span style="font-size:11px;color:var(--txt2);font-variant-numeric:tabular-nums">
+          ${doneCount}/${warmups.length}${allDone?'':' sets · ramping to '+workingWt+' lb'}
+        </span>
+      </div>
+      <span style="font-size:11px;color:var(--txt3);transition:transform .15s;
+        display:inline-block;${expanded?'transform:rotate(180deg)':''}">▾</span>
+    </button>
+    ${expanded ? `<div style="padding:0 16px 12px;display:flex;flex-direction:column;gap:5px">
+      ${warmups.map((wu, idx) => {
+        const isDone = !!done[idx];
+        return `<button onclick="toggleWarmupSet(${ei}, ${idx})" style="
+          width:100%;background:${isDone?'#22c55e1a':'var(--bg2)'};
+          border:1.5px solid ${isDone?'#22c55e':'var(--border)'};
+          border-radius:9px;padding:9px 12px;
+          display:flex;justify-content:space-between;align-items:center;
+          cursor:pointer;font-family:inherit;color:${isDone?'#22c55e':'var(--txt)'};
+          transition:all .12s">
+          <div style="display:flex;gap:11px;align-items:center">
+            <span style="font-size:10px;font-weight:700;color:var(--txt3);
+              font-family:ui-monospace,monospace;min-width:22px;text-align:left">W${idx+1}</span>
+            <span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums">
+              ${wu.w} <span style="font-size:10px;color:var(--txt3);font-weight:500">lb</span> × ${wu.reps}
+            </span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="font-size:10px;color:var(--txt3);font-weight:600;
+              font-variant-numeric:tabular-nums">${wu.pct}%</span>
+            <span style="font-size:15px;line-height:1;width:18px;text-align:center">
+              ${isDone?'✓':'○'}
+            </span>
+          </div>
+        </button>`;
+      }).join('')}
+      <div style="font-size:10px;color:var(--txt3);text-align:center;margin-top:4px;line-height:1.5">
+        Warmup sets are guidance — they don't count toward volume, progression, or PRs.
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+// ── Famous Programs Library ─────────────────────────────────────────────────
+// Five widely-cited intermediate strength programs. When loaded, populates the
+// active program with day structure + percentage scheme as day notes. The user
+// still manages their Training Max (TM) and applies the percentages manually.
+const FAMOUS_PROGRAMS = [
+  {
+    id: '531-wendler',
+    name: '5/3/1 (Wendler)',
+    author: 'Jim Wendler',
+    daysCount: 4,
+    defaultMode: 'strength',
+    description: 'Four-week cycles built around four main lifts (OHP, Deadlift, Bench, Squat). Each week uses a different rep scheme based on a Training Max (TM = 90% of true 1RM). Add 5 lb to upper-body TM and 10 lb to lower-body TM each cycle. Triumvirate variant: two main-lift accessories per day.',
+    citation: 'Wendler, J. (2017). 5/3/1: The Simplest and Most Effective Training System.',
+    scheme: 'Wk1: 65/75/85×5+ · Wk2: 70/80/90×3+ · Wk3: 75/85/95×5/3/1+ · Wk4 deload: 40/50/60×5',
+    days: [
+      {label:'Press Day', mode:'strength', exIds:['bb-ohp','bw-dip','bw-pullup']},
+      {label:'Deadlift Day', mode:'strength', exIds:['bb-dl','bb-gm','bw-hlr']},
+      {label:'Bench Day', mode:'strength', exIds:['bb-bench','db-inc','db-row']},
+      {label:'Squat Day', mode:'strength', exIds:['bb-sq','ares-lp','ares-curl']}
+    ]
+  },
+  {
+    id: 'gzclp',
+    name: 'GZCLP (Lefever)',
+    author: 'Cody Lefever',
+    daysCount: 4,
+    defaultMode: 'strength',
+    description: 'Three-tier linear progression. T1 = heavy compound at low reps, T2 = secondary at moderate reps, T3 = accessory at high reps. When T1 reps fail, switch to denser rep scheme. When that fails, deload TM by 10% and restart. Designed for novice/early intermediate lifters who have outgrown straight linear progression.',
+    citation: 'Lefever, C. — GZCL Method (r/weightroom community wiki).',
+    scheme: 'T1: 5×3+ → 6×2+ → 10×1+ · T2: 3×10 → 3×8 → 3×6 · T3: 3×15+ AMRAP',
+    days: [
+      {label:'Squat / Bench / Pulldown', mode:'strength', exIds:['bb-sq','bb-bench','cb-lat']},
+      {label:'OHP / Deadlift / Row', mode:'strength', exIds:['bb-ohp','bb-dl','db-row']},
+      {label:'Bench / Squat / Pulldown', mode:'strength', exIds:['bb-bench','bb-sq','cb-lat']},
+      {label:'Deadlift / OHP / Row', mode:'strength', exIds:['bb-dl','bb-ohp','db-row']}
+    ]
+  },
+  {
+    id: 'madcow',
+    name: 'Madcow 5×5',
+    author: 'Bill Starr / Madcow',
+    daysCount: 3,
+    defaultMode: 'strength',
+    description: 'Weekly linear progression. Monday is ramping 5×5 volume work. Wednesday is light recovery. Friday is a 1×5 PR attempt with one downset. Add 5 lb upper / 10 lb lower per week until missed reps, then deload 10% and rebuild. Classic intermediate bridge program.',
+    citation: 'Starr, B. (1976), as adapted by Madcow on EliteFTS.',
+    scheme: 'Mon: 5×5 ramp (4 sets up, 1 working) · Wed: 4×5 light · Fri: 1×5 PR + 1×5 downset',
+    days: [
+      {label:'Monday — Volume', mode:'strength', exIds:['bb-sq','bb-bench','bb-row']},
+      {label:'Wednesday — Light', mode:'strength', exIds:['bb-sq','bb-ohp','bb-dl']},
+      {label:'Friday — Intensity', mode:'strength', exIds:['bb-sq','bb-bench','bb-row']}
+    ]
+  },
+  {
+    id: 'nsuns',
+    name: 'nSuns 5/3/1 LP',
+    author: 'nSuns',
+    daysCount: 5,
+    defaultMode: 'strength',
+    description: 'High-volume 5/3/1 daily linear progression. 8 sets per main lift in a wave structure. Add 5 lb upper / 10 lb lower after every session you complete the AMRAP final set. Deload 10% when you miss. Very demanding — best for intermediates with solid recovery and form.',
+    citation: 'nSuns — r/nSuns wiki on Reddit.',
+    scheme: '8 sets per main lift: 5/3/1+/3/3/3/5/5 at percentages 75/85/95/90/85/80/75/70 of TM',
+    days: [
+      {label:'Bench + OHP', mode:'strength', exIds:['bb-bench','bb-ohp']},
+      {label:'Squat + Sumo DL', mode:'strength', exIds:['bb-sq','bb-sumo']},
+      {label:'OHP + Incline Bench', mode:'strength', exIds:['bb-ohp','bb-inc']},
+      {label:'Deadlift + Front Squat', mode:'strength', exIds:['bb-dl','bb-fsq']},
+      {label:'Bench + Close-Grip', mode:'strength', exIds:['bb-bench','bb-cgbp']}
+    ]
+  },
+  {
+    id: 'texas',
+    name: 'Texas Method',
+    author: 'Rippetoe',
+    daysCount: 3,
+    defaultMode: 'strength',
+    description: 'Classic intermediate weekly progression. Monday volume sets the weekly workload (5×5 at challenging weight). Wednesday is light recovery to allow Friday to be a PR attempt at 1×5. Add 5 lb upper / 10 lb lower per week. The PR attempt is what drives adaptation.',
+    citation: 'Rippetoe, M. (2005). Practical Programming for Strength Training.',
+    scheme: 'Mon: 5×5 volume · Wed: 2×5 at 80% Monday weight · Fri: 1×5 PR (heavier than Monday)',
+    days: [
+      {label:'Monday — Volume', mode:'strength', exIds:['bb-sq','bb-bench','bb-dl']},
+      {label:'Wednesday — Light', mode:'strength', exIds:['bb-sq','bb-ohp','bw-pullup']},
+      {label:'Friday — Intensity', mode:'strength', exIds:['bb-sq','bb-bench','bb-row']}
+    ]
+  }
+];
+
+function getFamousProgram(id){return FAMOUS_PROGRAMS.find(p => p.id === id);}
+
+function loadFamousProgram(id){
+  const fp = getFamousProgram(id);
+  if(!fp) return false;
+  const program = fp.days.map((day, i) => {
+    const validExIds = day.exIds.filter(eid => EX[eid]);
+    return{
+      id: `${id}-d${i}-${Date.now()}`,
+      label: day.label,
+      mode: day.mode,
+      exIds: validExIds,
+      notes: fp.scheme,
+      muscles: [...new Set(validExIds.map(eid => EX[eid]?.mg).filter(Boolean))].join(', ')||'Mixed',
+      pri: [],
+      sec: []
+    };
+  });
+  saveActiveProgram(program);
+  LS.set('lift_prog_name', fp.name);
+  S.activeDayIdx = 0;
+  S.swapDayIdx = null;
+  if(typeof smartSelectDay === 'function') smartSelectDay();
+  return true;
+}
+
+// ── UI: Famous Programs section in Settings ─────────────────────────────────
+function rFamousProgramsList(){
+  return `
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin:18px 0 10px">Famous Programs</div>
+  <div style="font-size:11px;color:var(--txt3);line-height:1.5;margin-bottom:10px">
+    Widely-cited intermediate strength programs with full progression schemes.
+    Loading replaces your active program (history preserved).
+  </div>
+  <div style="margin-bottom:14px;display:flex;flex-direction:column;gap:6px">
+    ${FAMOUS_PROGRAMS.map(fp => `
+      <button onclick="showLoadFamousProgramModal('${fp.id}')"
+        style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;
+        padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;
+        font-family:inherit;text-align:left;width:100%">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--txt)">${esc(fp.name)}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px">
+            ${fp.daysCount} days · ${esc(fp.author)}
+          </div>
+        </div>
+        <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
+      </button>
+    `).join('')}
+  </div>`;
+}
+
+function showLoadFamousProgramModal(programId){
+  const fp = getFamousProgram(programId);
+  if(!fp){alert('Program not found.');return;}
+  const hasActive = !!getActiveProgram();
+  const div = document.createElement('div');
+  div.id = 'load-famous-modal';
+  div.className = 'modal-bg';
+  div.innerHTML = `
+<div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--txt3);margin-bottom:6px">Famous Program</div>
+    <div style="font-size:22px;font-weight:800;letter-spacing:.02em">${esc(fp.name)}</div>
+    <div style="font-size:12px;color:var(--txt2);margin-top:4px">
+      ${fp.daysCount} days · ${esc(fp.author)}
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--txt2);line-height:1.6;background:var(--bg2);
+    border-radius:8px;padding:11px 13px;margin-bottom:10px">${esc(fp.description)}</div>
+  <div style="font-size:10px;color:var(--txt2);line-height:1.6;background:var(--bg2);
+    border-radius:8px;padding:9px 13px;margin-bottom:10px;
+    font-family:ui-monospace,monospace;letter-spacing:-.01em">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--txt3);margin-bottom:4px;font-family:inherit">Scheme</div>
+    ${esc(fp.scheme)}
+  </div>
+  <div style="background:var(--bg2);border-radius:8px;padding:10px;margin-bottom:12px;
+    max-height:200px;overflow-y:auto">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--txt3);margin-bottom:6px;padding:0 4px">Days</div>
+    ${fp.days.map(day => {
+      const validEx = day.exIds.filter(eid => EX[eid]);
+      const exNames = validEx.map(eid => EX[eid].n);
+      return `<div style="padding:7px 4px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:12px;font-weight:700">${esc(day.label)}</span>
+          <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;
+            background:${MODES[day.mode]?.c||'#888'}22;color:${MODES[day.mode]?.c||'#888'}">
+            ${MODES[day.mode]?.n || day.mode}</span>
+        </div>
+        <div style="font-size:10px;color:var(--txt3);line-height:1.5">${exNames.join(' · ')}</div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div style="font-size:10px;color:var(--txt3);line-height:1.5;margin-bottom:12px;
+    font-style:italic;text-align:center">${esc(fp.citation)}</div>
+  ${hasActive ? `<div style="font-size:11px;color:var(--amber);background:#3a2a0a;
+    border:1px solid #5a4015;border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.5">
+    ⚠ This will replace your current active program. Workout history is preserved.
+  </div>` : ''}
+  <div style="display:flex;gap:8px">
+    <button onclick="closeLoadFamousModal()" class="btn btn-s"
+      style="flex:1;height:48px;font-size:14px">Cancel</button>
+    <button onclick="confirmLoadFamousProgram('${fp.id}')" class="btn btn-p"
+      style="flex:2;height:48px;font-size:14px;font-weight:700">Load Program</button>
+  </div>
+</div>`;
+  document.body.appendChild(div);
+}
+
+function closeLoadFamousModal(){
+  const m = document.getElementById('load-famous-modal');
+  if(m) m.remove();
+}
+
+function confirmLoadFamousProgram(programId){
+  if(loadFamousProgram(programId)){
+    closeLoadFamousModal();
+    S.screen = 'home';
+    render();
+  }
+}
+
 
 // =====================================================================
 // EVIDENCE-BASED SPLITS
@@ -3411,6 +3763,8 @@ function rActive(){
     }
   </div>
 
+  ${rWarmupSection(w.ei, exId, w.mode)}
+
   ${lastSession?`
   <!-- Previous session reference -->
   <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
@@ -5206,6 +5560,22 @@ function rSettings(){
 
   <div class="settings-row">
     <div>
+      <div class="settings-label">Warmup ramps</div>
+      <div class="settings-sub">Top-set warmup sets shown above each exercise (Sale 1992; Helms framework)</div>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${[['auto','Auto'],['full','Full'],['minimal','Min'],['off','Off']].map(([v,lbl])=>`
+        <button onclick="savePrefs({warmupRamp:'${v}'});render()"
+          style="padding:5px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+          border:1.5px solid ${(p.warmupRamp||'auto')===v?'var(--red)':'var(--border2)'};
+          background:${(p.warmupRamp||'auto')===v?'var(--red)22':'var(--bg2)'};
+          color:${(p.warmupRamp||'auto')===v?'var(--red)':'var(--txt3)'}">${lbl}</button>
+      `).join('')}
+    </div>
+  </div>
+
+  <div class="settings-row">
+    <div>
       <div class="settings-label">1RM estimation formula</div>
       <div class="settings-sub">Brzycki: more accurate 1–7 reps · Epley: more accurate 7–10 reps (LeSuer 1997)</div>
     </div>
@@ -5264,6 +5634,8 @@ function rSettings(){
   <!-- SAVED PROGRAMS -->
   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
     text-transform:uppercase;margin:20px 0 10px">Programs</div>
+
+  ${rFamousProgramsList()}
 
   <div class="settings-row">
     <div>
