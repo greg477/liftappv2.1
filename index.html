@@ -1617,6 +1617,55 @@ function deleteHistoryEntry(idx){
   render();
 }
 
+
+// ── CSV Export (recommendation 10) ──────────────────────────────────────────
+// Exports complete training history as a CSV file for external analysis,
+// Excel/Sheets import, or use with Apple Shortcuts automation.
+function generateHistoryCSV(){
+  const hist=getHistory()||[];
+  if(!hist.length)return null;
+  const rows=[['Date','Time','Day Label','Mode','Exercise','MG','Set #','Weight (lbs)','Reps','RPE','Volume','Note','PR']];
+  hist.slice().sort((a,b)=>a.date-b.date).forEach(h=>{
+    const d=new Date(h.date);
+    const dateStr=d.toISOString().slice(0,10);
+    const timeStr=d.toTimeString().slice(0,5);
+    (h.exIds||[]).forEach((exId,ei)=>{
+      const ex=EX[exId]||{n:exId,mg:''};
+      const sets=(h.sets&&h.sets[ei])||[];
+      sets.filter(s=>s.done).forEach((s,si)=>{
+        rows.push([
+          dateStr, timeStr, h.dayLabel||'', h.mode||'',
+          ex.n.replace(/,/g,';'),
+          ex.mg||'',
+          si+1,
+          s.w||0, s.reps||0,
+          s.rpe||'',
+          (s.w*s.reps)||0,
+          (s.note||'').replace(/[",\n]/g,' '),
+          s.isPR?'PR':''
+        ]);
+      });
+    });
+  });
+  return rows.map(r=>r.map(v=>{
+    const str=String(v);
+    return /[,"\n]/.test(str) ? `"${str.replace(/"/g,'""')}"` : str;
+  }).join(',')).join('\n');
+}
+
+function downloadHistoryCSV(){
+  const csv=generateHistoryCSV();
+  if(!csv){alert('No workout history to export.');return;}
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`lift-history-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+
 function exportBackup(){
   const data={v:1,ts:Date.now()};
   BACKUP_KEYS.forEach(k=>{const v=LS.get(k);if(v!==null)data[k]=v;});
@@ -3097,6 +3146,56 @@ function selectExertion(rating,exId,weight){
 // =====================================================================
 // WORKOUT COMPLETION MODAL
 // =====================================================================
+
+// ── Post-Workout Summary Helpers (recommendation 4) ────────────────────────
+function getPreviousSessionStats(dayId, currentDate){
+  const hist=getHistory()||[];
+  // Find most recent completed session of the same day, before currentDate
+  const prev=hist
+    .filter(h=>h.day===dayId&&h.date<currentDate)
+    .sort((a,b)=>b.date-a.date)[0];
+  if(!prev)return null;
+  const totalVol=(prev.sets||[]).reduce((a,sets)=>
+    a+(sets||[]).filter(s=>s.done).reduce((b,s)=>b+s.w*s.reps,0),0);
+  const totalSets=(prev.sets||[]).reduce((a,sets)=>
+    a+(sets||[]).filter(s=>s.done).length,0);
+  return {date:prev.date, totalVol, totalSets, dur:prev.dur||0};
+}
+
+function getWorkoutVolumeByMG(workout){
+  const byMG={};
+  (workout.exIds||[]).forEach((exId,ei)=>{
+    const mg=EX[exId]?.mg;
+    if(!mg)return;
+    const sets=(workout.sets&&workout.sets[ei])||[];
+    const setsDone=sets.filter(s=>s.done);
+    if(!setsDone.length)return;
+    if(!byMG[mg])byMG[mg]={sets:0, vol:0};
+    byMG[mg].sets+=setsDone.length;
+    byMG[mg].vol+=setsDone.reduce((a,s)=>a+s.w*s.reps,0);
+  });
+  return byMG;
+}
+
+function getPRsFromWorkout(workout){
+  // Scan for sets flagged isPR=true during logging
+  const prs=[];
+  (workout.exIds||[]).forEach((exId,ei)=>{
+    const sets=(workout.sets&&workout.sets[ei])||[];
+    const prSets=sets.filter(s=>s.done&&s.isPR);
+    if(prSets.length){
+      // Use the heaviest PR set per exercise
+      const best=prSets.reduce((a,s)=>(calcE1RM(s.w,s.reps)>calcE1RM(a.w,a.reps)?s:a),prSets[0]);
+      prs.push({
+        exId, exName: EX[exId]?.n || exId,
+        weight: best.w, reps: best.reps,
+        e1rm: calcE1RM(best.w, best.reps)
+      });
+    }
+  });
+  return prs;
+}
+
 function showCompletionModal(summary){
   const dur=summary.dur||0;
   const totalSets=summary.sets.reduce((a,s)=>a+s.filter(x=>x.done).length,0);
@@ -3106,6 +3205,13 @@ function showCompletionModal(summary){
     return{id,vol,best:Math.max(0,...summary.sets[i].filter(s=>s.done).map(s=>s.w))};
   }).sort((a,b)=>b.vol-a.vol).slice(0,3);
   const modeC=MODES[summary.mode]?.c||'#1d9e75';
+  // Comprehensive stats (recommendation #4)
+  const volByMG=getWorkoutVolumeByMG(summary);
+  const sortedMGs=Object.entries(volByMG).sort((a,b)=>b[1].sets-a[1].sets);
+  const prs=getPRsFromWorkout(summary);
+  const prevSession=getPreviousSessionStats(summary.day, summary.date||Date.now());
+  const volDelta=prevSession?((totalVol-prevSession.totalVol)/(prevSession.totalVol||1)*100):null;
+  const setsDelta=prevSession?(totalSets-prevSession.totalSets):null;
   const div=document.createElement('div');
   div.id='completion-modal';
   div.className='modal-bg';
@@ -3119,53 +3225,119 @@ function showCompletionModal(summary){
     <div style="font-size:13px;color:var(--txt2);margin-top:6px">${esc(summary.dayLabel)}</div>
   </div>
   <!-- Key stats -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:22px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
     <div style="background:var(--bg2);border-radius:12px;padding:14px 8px;text-align:center">
-      <div style="font-size:26px;font-weight:700;color:${modeC}">${dur}</div>
+      <div style="font-size:26px;font-weight:700;color:${modeC};font-variant-numeric:tabular-nums">${dur}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:3px">minutes</div>
     </div>
     <div style="background:var(--bg2);border-radius:12px;padding:14px 8px;text-align:center">
-      <div style="font-size:26px;font-weight:700;color:${modeC}">${totalSets}</div>
+      <div style="font-size:26px;font-weight:700;color:${modeC};font-variant-numeric:tabular-nums">${totalSets}</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:3px">sets logged</div>
     </div>
     <div style="background:var(--bg2);border-radius:12px;padding:14px 8px;text-align:center">
-      <div style="font-size:26px;font-weight:700;color:${modeC}">${(totalVol/1000).toFixed(1)}k</div>
+      <div style="font-size:26px;font-weight:700;color:${modeC};font-variant-numeric:tabular-nums">${(totalVol/1000).toFixed(1)}k</div>
       <div style="font-size:11px;color:var(--txt3);margin-top:3px">lbs volume</div>
     </div>
   </div>
-  <!-- Top exercises by volume -->
-  ${topEx.length?`
-  <div style="margin-bottom:22px">
-    <div class="sec-label" style="margin-bottom:10px">Top exercises</div>
-    ${topEx.map(e=>`
+
+  <!-- Comparison to last session of same day -->
+  ${prevSession?`
+  <div style="background:var(--bg2);border-radius:10px;padding:11px 13px;margin-bottom:14px;
+    border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)">
+        vs Last ${esc(summary.dayLabel)}
+      </span>
+      <span style="font-size:10px;color:var(--txt3)">
+        ${new Date(prevSession.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+      </span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+      <span style="color:var(--txt2)">Volume</span>
+      <span style="font-weight:700;color:${volDelta>0?'#22c55e':volDelta<0?'#ef4444':'var(--txt2)'}">
+        ${volDelta>0?'+':''}${volDelta.toFixed(1)}% (${(prevSession.totalVol/1000).toFixed(1)}k → ${(totalVol/1000).toFixed(1)}k)
+      </span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:4px">
+      <span style="color:var(--txt2)">Sets</span>
+      <span style="font-weight:600;color:${setsDelta>0?'#22c55e':setsDelta<0?'#ef4444':'var(--txt2)'}">
+        ${setsDelta>0?'+':''}${setsDelta} (${prevSession.totalSets} → ${totalSets})
+      </span>
+    </div>
+  </div>`:''}
+
+  <!-- PRs broken this workout -->
+  ${prs.length?`
+  <div style="background:linear-gradient(135deg,#f5d20a14 0%,#f5d20a08 100%);
+    border:1px solid #f5d20a55;border-radius:12px;padding:13px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="font-size:18px">★</span>
+      <div style="font-size:13px;font-weight:800;color:#f5d20a;letter-spacing:.02em">
+        ${prs.length} PR${prs.length>1?'s':''} broken
+      </div>
+    </div>
+    ${prs.map(p=>`
       <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <span style="color:var(--txt)">${EX[e.id]?.n||e.id}</span>
-        <span style="color:var(--txt2)">${e.vol.toLocaleString()} lbs vol</span>
+        padding:5px 0;font-size:12px">
+        <span style="color:var(--txt);font-weight:500;flex:1;min-width:0;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${esc(p.exName)}</span>
+        <span style="color:#f5d20a;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0">
+          ${p.weight}×${p.reps} <span style="color:var(--txt3);font-weight:500">(e1RM ${p.e1rm})</span>
+        </span>
       </div>`).join('')}
   </div>`:''}
+
+  <!-- Volume by muscle group -->
+  ${sortedMGs.length?`
+  <div style="margin-bottom:14px">
+    <div class="sec-label" style="margin-bottom:8px">Volume by muscle group</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">
+      ${sortedMGs.map(([mg,d])=>`
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+          padding:5px 11px;font-size:11px;display:flex;align-items:center;gap:5px">
+          <span style="color:var(--txt2)">${esc(mg)}</span>
+          <span style="color:${modeC};font-weight:700">${d.sets}</span>
+        </div>`).join('')}
+    </div>
+  </div>`:''}
+
+  <!-- Top exercises by volume -->
+  ${topEx.length?`
+  <div style="margin-bottom:14px">
+    <div class="sec-label" style="margin-bottom:8px">Top exercises</div>
+    ${topEx.map(e=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:var(--txt);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+          white-space:nowrap;padding-right:8px">${EX[e.id]?.n||e.id}</span>
+        <span style="color:var(--txt2);flex-shrink:0;font-variant-numeric:tabular-nums">
+          ${e.vol.toLocaleString()} lbs
+        </span>
+      </div>`).join('')}
+  </div>`:''}
+
   <!-- Auto-progression events -->
   ${(summary.progressions||[]).length?`
-  <div style="background:#e2202014;border:1px solid #e2202035;border-radius:12px;padding:14px;margin-bottom:22px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <span style="font-size:18px">📈</span>
-      <div style="font-size:13px;font-weight:700;color:#e22020">
+  <div style="background:#e2202014;border:1px solid #e2202035;border-radius:12px;padding:13px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+      <span style="font-size:16px">📈</span>
+      <div style="font-size:12px;font-weight:700;color:#e22020">
         ${summary.progressions.length} exercise${summary.progressions.length>1?'s':''} progressed
       </div>
     </div>
     ${summary.progressions.map(p=>`
       <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:7px 0;border-bottom:1px solid #1d9e7525;font-size:12px">
-        <span style="color:var(--txt);font-weight:500">${p.exName}</span>
-        <span style="color:#e22020;font-weight:700">${p.from} → ${p.to} lbs</span>
+        padding:5px 0;font-size:12px">
+        <span style="color:var(--txt);font-weight:500">${esc(p.exName)}</span>
+        <span style="color:#e22020;font-weight:700;font-variant-numeric:tabular-nums">${p.from} → ${p.to}</span>
       </div>`).join('')}
-    <div style="font-size:11px;color:var(--txt3);margin-top:8px">
-      Default weight updated for next session
-    </div>
   </div>`:''}
+
   <button onclick="removeCompletionModal();S.screen='history';render()"
+    aria-label="View workout log"
     class="btn btn-p btn-xl" style="margin-bottom:10px">View Log</button>
   <button onclick="removeCompletionModal();S.screen='home';render()"
+    aria-label="Return to home"
     class="btn btn-s btn-xl">Back to Home</button>
 </div>`;
   document.body.appendChild(div);
@@ -4035,7 +4207,20 @@ function rActive(){
   <div style="padding:14px 16px;background:var(--bg2);display:flex;align-items:flex-start;justify-content:space-between">
     <div>
       <div style="font-size:17px;font-weight:700">
-        ${ex.n}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}
+        ${ex.n}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}${(()=>{
+          // Best e1RM badge (recommendation #5)
+          const prs=getPRs();
+          const best=prs[exId];
+          if(!best||!best.e1rm)return '';
+          const days=Math.floor((Date.now()-(best.date||Date.now()))/(24*60*60*1000));
+          const dayStr=days<=0?'today':days===1?'1 day ago':days<30?`${days}d ago`:`${Math.floor(days/30)}mo ago`;
+          return `<span style="vertical-align:middle;margin-left:8px;background:var(--bg2);
+            border:1px solid var(--border2);color:var(--txt2);font-size:10px;font-weight:600;
+            padding:2px 7px;border-radius:14px;letter-spacing:.02em;white-space:nowrap"
+            title="Best e1RM ever, set ${dayStr}">
+            <span style="color:#f5d20a">★</span> ${best.e1rm} e1RM
+          </span>`;
+        })()}
       </div>
       <div style="font-size:12px;color:var(--txt2);margin-top:3px">
         ${ex.eq} · Set ${w.si+1}/${sets.length} · Target ${MODES[w.mode].reps[0]}–${MODES[w.mode].reps[1]} reps${getExTempo(exId)?` · <span style="font-family:ui-monospace,monospace;color:var(--mode);font-weight:600">Tempo ${getExTempo(exId)}</span>`:''}
@@ -4272,12 +4457,136 @@ function rTimer(){
 // =====================================================================
 // HISTORY
 // =====================================================================
+
+// ── Calendar History View (recommendation 3) ───────────────────────────────
+// Renders a month grid showing training days color-coded by mode.
+function getWorkoutsByDateKey(){
+  const hist=getHistory()||[];
+  const map={};
+  hist.forEach((h,i)=>{
+    const d=new Date(h.date);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(!map[key])map[key]=[];
+    map[key].push({...h,_idx:i});
+  });
+  return map;
+}
+
+function calendarMonthDelta(delta){
+  // S.calYM is stored as "YYYY-MM"
+  const cur=S.calYM||(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;})();
+  const [y,m]=cur.split('-').map(Number);
+  const d=new Date(y,m-1+delta,1);
+  S.calYM=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  render();
+}
+
+function rCalendarView(){
+  const cur=S.calYM||(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;})();
+  const [year,month]=cur.split('-').map(Number);
+  const firstDay=new Date(year,month-1,1);
+  const lastDay=new Date(year,month,0);
+  const daysInMonth=lastDay.getDate();
+  const startDow=firstDay.getDay();  // 0=Sun
+  const monthName=firstDay.toLocaleString('en-US',{month:'long'});
+  const workoutsByDate=getWorkoutsByDateKey();
+  const today=new Date();
+  const todayKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  // Build cell array
+  const cells=[];
+  for(let i=0;i<startDow;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++){
+    const key=`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const workouts=workoutsByDate[key]||[];
+    cells.push({day:d,key,workouts,isToday:key===todayKey});
+  }
+  while(cells.length%7!==0)cells.push(null);
+  // Get most-active week stat
+  const monthWorkouts=Object.entries(workoutsByDate)
+    .filter(([k])=>k.startsWith(`${year}-${String(month).padStart(2,'0')}`))
+    .reduce((a,[,arr])=>a+arr.length,0);
+  return `
+<div style="padding:0 16px 18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <button onclick="calendarMonthDelta(-1)" aria-label="Previous month"
+      style="background:var(--bg2);border:1px solid var(--border);color:var(--txt);
+      width:36px;height:36px;border-radius:9px;font-size:18px;cursor:pointer">‹</button>
+    <div style="text-align:center">
+      <div style="font-size:16px;font-weight:700;letter-spacing:-.01em">${monthName} ${year}</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">
+        ${monthWorkouts} workout${monthWorkouts===1?'':'s'} this month
+      </div>
+    </div>
+    <button onclick="calendarMonthDelta(1)" aria-label="Next month"
+      style="background:var(--bg2);border:1px solid var(--border);color:var(--txt);
+      width:36px;height:36px;border-radius:9px;font-size:18px;cursor:pointer">›</button>
+  </div>
+  <!-- Day-of-week header -->
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+    ${['S','M','T','W','T','F','S'].map((d,i)=>`
+      <div style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;
+        color:${i===0||i===6?'var(--txt3)':'var(--txt2)'};padding:4px 0">${d}</div>
+    `).join('')}
+  </div>
+  <!-- Calendar grid -->
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+    ${cells.map(cell=>{
+      if(!cell)return `<div style="aspect-ratio:1"></div>`;
+      const hasWorkouts=cell.workouts.length>0;
+      const modes=[...new Set(cell.workouts.map(w=>w.mode))];
+      const dotColors=modes.map(m=>MODES[m]?.c||'#888').slice(0,3);
+      const onClick=hasWorkouts?
+        `onclick="S.histIdx=${cell.workouts[0]._idx};S.screen='histDetail';render()" style="cursor:pointer"`:
+        `style="cursor:default"`;
+      return `<button ${onClick}
+        aria-label="${cell.day}${hasWorkouts?', '+cell.workouts.length+' workout'+(cell.workouts.length>1?'s':''):', no workouts'}"
+        style="aspect-ratio:1;background:${hasWorkouts?'var(--bg2)':'transparent'};
+        border:1.5px solid ${cell.isToday?'var(--red)':hasWorkouts?'var(--border)':'transparent'};
+        border-radius:8px;padding:4px 0 3px;display:flex;flex-direction:column;
+        align-items:center;justify-content:space-between;font-family:inherit;
+        color:${cell.isToday?'var(--txt)':hasWorkouts?'var(--txt)':'var(--txt3)'};
+        font-size:13px;font-weight:${cell.isToday?'800':hasWorkouts?'600':'400'}">
+        <span style="font-variant-numeric:tabular-nums">${cell.day}</span>
+        <div style="display:flex;gap:2px;height:5px;align-items:center">
+          ${dotColors.map(c=>`<div style="width:4px;height:4px;border-radius:50%;background:${c}"></div>`).join('')}
+        </div>
+      </button>`;
+    }).join('')}
+  </div>
+  <!-- Legend -->
+  ${monthWorkouts>0?`
+  <div style="display:flex;gap:10px;margin-top:14px;justify-content:center;
+    font-size:10px;color:var(--txt3);flex-wrap:wrap">
+    ${Object.entries(MODES).map(([k,m])=>`
+      <span style="display:inline-flex;align-items:center;gap:4px">
+        <span style="width:6px;height:6px;border-radius:50%;background:${m.c};display:inline-block"></span>
+        ${m.n}
+      </span>
+    `).join('')}
+  </div>`:''}
+</div>`;
+}
+
 function rHistory(){
   const h=getHistory();
   return`
 <div class="page-head" style="justify-content:space-between;align-items:center">
   <div style="text-align:left"><div class="page-title"><span>LOG</span></div><div class="page-sub">${h.length} session${h.length===1?'':'s'}</div></div>
-  <div style="display:flex;gap:8px;align-items:center">
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+    <!-- View toggle: list ↔ calendar (recommendation #3) -->
+    <div style="display:flex;background:var(--bg2);border:1px solid var(--border);
+      border-radius:9px;padding:2px;gap:1px">
+      <button onclick="S.histView='list';render()"
+        aria-label="List view"
+        style="background:${(S.histView!=='cal')?'var(--bg3)':'transparent'};
+        border:none;color:${(S.histView!=='cal')?'var(--txt)':'var(--txt3)'};
+        font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer">List</button>
+      <button onclick="S.histView='cal';render()"
+        aria-label="Calendar view"
+        style="background:${(S.histView==='cal')?'var(--bg3)':'transparent'};
+        border:none;color:${(S.histView==='cal')?'var(--txt)':'var(--txt3)'};
+        font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer">Calendar</button>
+    </div>
     <button onclick="importBackup()" style="background:none;border:1px solid var(--border2);color:var(--txt2);
       font-size:12px;font-weight:500;padding:5px 11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
@@ -4290,8 +4599,7 @@ function rHistory(){
     </button>
   </div>
 </div>
-<div style="padding:0 16px 30px">
-  ${h.length===0?`<div class="empty"><div class="empty-icon">📋</div><div>No workouts yet</div>
+${S.histView==='cal'?rCalendarView():`<div style="padding:0 16px 30px">${h.length===0?`<div class="empty"><div class="empty-icon">📋</div><div>No workouts yet</div>
     <div style="font-size:13px;margin-top:6px;color:var(--txt3)">Start a workout to log it here</div></div>`
   :h.map((w,i)=>{
     const d=new Date(w.date);
@@ -4317,7 +4625,8 @@ function rHistory(){
     </div>`;
   }).join('')}
   ${screenWordmark()}
-</div>`;
+</div>`}
+`;
 }
 
 function rHistDetail(){
@@ -6005,6 +6314,16 @@ function rSettings(){
   <!-- DATA -->
   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
     text-transform:uppercase;margin:20px 0 10px">Data</div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Export history (CSV)</div>
+      <div class="settings-sub">Spreadsheet format — every set with weight, reps, RPE, volume, notes</div>
+    </div>
+    <button onclick="downloadHistoryCSV()" class="btn btn-s"
+      aria-label="Export training history as CSV"
+      style="height:38px;padding:0 14px;font-size:12px;font-weight:700">Download</button>
+  </div>
 
   <div class="settings-row" style="border:none">
     <div>
