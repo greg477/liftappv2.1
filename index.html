@@ -458,6 +458,10 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Progress
     </button>
+    <button class="nb" id="nb-knowledge" aria-label="Knowledge library" onclick="navTo('knowledge')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Learn
+    </button>
   </nav>
 </div>
 <script>
@@ -1607,6 +1611,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
 
 // ---- Export / Import backup ----
+const APP_VERSION='2.0';  // bump on each deploy; shown in Settings → About
 const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
@@ -3364,11 +3369,53 @@ function shortName(id){
 // =====================================================================
 // RENDER ENGINE
 // =====================================================================
+
+// ── App update detection + force refresh (cache busting) ────────────────────
+function showUpdateBanner(reg){
+  if(document.getElementById('update-banner'))return;
+  const bar=document.createElement('div');
+  bar.id='update-banner';
+  bar.style.cssText=`position:fixed;left:0;right:0;bottom:0;z-index:9000;
+    background:var(--red);color:#fff;padding:13px 16px;
+    padding-bottom:calc(13px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    box-shadow:0 -2px 12px rgba(0,0,0,.4);font-family:inherit`;
+  bar.innerHTML=`
+    <div style="font-size:13px;font-weight:600;line-height:1.4">
+      A new version is available.
+    </div>
+    <button id="update-now-btn" style="background:#fff;color:var(--red);border:none;
+      padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;
+      font-family:inherit;flex-shrink:0">Update</button>`;
+  document.body.appendChild(bar);
+  document.getElementById('update-now-btn').addEventListener('click',()=>{
+    if(reg&&reg.waiting)reg.waiting.postMessage('SKIP_WAITING');
+    else window.location.reload();
+  });
+}
+
+// Manual force-refresh: clears all caches and reloads from network.
+async function forceRefreshApp(){
+  if(!confirm('Reload the latest version? This clears the app cache and refreshes. Your workout data is safe.'))return;
+  try{
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+    }
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.update()));
+    }
+  }catch(e){/* best effort */}
+  // Hard reload from network
+  window.location.reload();
+}
+
 function render(){
   const ap=getActiveProgram();
   const activeDayMode=(ap&&ap[S.activeDayIdx]?.mode)||S.mode;
   document.documentElement.style.setProperty('--mode',MODES[activeDayMode]?.c||MODES[S.mode].c);
-  ['home','builder','active','history','progress'].forEach(id=>{
+  ['home','builder','active','history','progress','knowledge'].forEach(id=>{
     const el=document.getElementById('nb-'+id);
     if(el)el.classList.toggle('on',
       (id==='active'&&(S.screen==='active'||S.screen==='timer'))||
@@ -4601,9 +4648,7 @@ function rKnowledge(){
     <div class="page-title"><span>LEARN</span></div>
     <div class="page-sub">Evidence-based references</div>
   </div>
-  <button onclick="navTo('settings')" aria-label="Back to settings"
-    style="background:none;border:1px solid var(--border2);color:var(--txt2);
-    font-size:12px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer">Done</button>
+  <div style="font-size:11px;color:var(--txt3)">${KNOWLEDGE_LIBRARY?Object.values(KNOWLEDGE_LIBRARY).reduce((a,c)=>a+c.items.length,0):0} refs</div>
 </div>
 <div style="padding:0 16px 30px">
   <div style="font-size:12px;color:var(--txt3);line-height:1.6;margin-bottom:20px;
@@ -6563,13 +6608,35 @@ function rSettings(){
     Clear All Data
   </button>
 
+  <button onclick="startOver()"
+    aria-label="Start over and restart intro"
+    style="width:100%;margin-top:10px;padding:13px;border-radius:10px;border:1.5px solid #3a1010;
+    background:#1a0808;color:#e22020;font-size:13px;font-weight:700;cursor:pointer">
+    Start Over (Reset &amp; Restart Intro)
+  </button>
+
+  <!-- APP / UPDATES -->
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
+    text-transform:uppercase;margin:24px 0 10px">App</div>
+
+  <div class="settings-row">
+    <div>
+      <div class="settings-label">Check for updates</div>
+      <div class="settings-sub">Clears the cache and reloads the latest version from the server</div>
+    </div>
+    <button onclick="forceRefreshApp()" class="btn btn-s"
+      aria-label="Check for updates and refresh"
+      style="height:38px;padding:0 14px;font-size:12px;font-weight:700">Refresh</button>
+  </div>
+
   <!-- ABOUT -->
   <div style="margin-top:28px;text-align:center;font-size:11px;color:#333;line-height:1.8">
     <div style="font-family:'Bebas Neue',Impact,sans-serif;font-style:italic;
       letter-spacing:.14em;font-size:18px;color:#222;margin-bottom:4px">LIFT</div>
     Evidence-based training tracker<br>
     Rep ranges · Israetel volume targets · Epley 1RM<br>
-    Auto-progression · 16 programs · Custom splits
+    Auto-progression · 16 programs · Custom splits<br>
+    <span style="color:#444;font-size:10px">Version ${APP_VERSION}</span>
   </div>
 </div>`;
 }
@@ -6746,10 +6813,46 @@ function clearAllData(){
   render();
 }
 
-  // Register service worker for offline-first caching
+// Start Over — wipes all data AND relaunches the onboarding flow from the start.
+function startOver(){
+  if(!confirm('Start over completely? This erases ALL workout history, programs, weights, PRs, and settings, then restarts the intro. This cannot be undone.'))return;
+  // Second confirmation for a destructive irreversible action
+  if(!confirm('Are you sure? Everything will be permanently deleted.'))return;
+  BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
+  localStorage.removeItem('lift_onboarded');
+  S.workout=null;S.screen='home';_obStep=0;
+  Object.assign(S,{activeDayIdx:0,progEx:null,progView:'chart',customDays:[],
+    bStep:1,bGoal:'hypertrophy',bDays:4,bSplit:'upper-lower-4',bPreview:null,
+    histView:'list',calYM:null});
+  // Relaunch onboarding from the top
+  showOnboarding();
+}
+
+  // Register service worker — network-first, with update detection
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./service-worker.js')
-      .catch(()=>{/* SW not available in this context */});
+    navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+      // Detect when a new SW has installed and is waiting
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        if(!nw)return;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
+            // A new version is ready — show a non-intrusive update banner
+            showUpdateBanner(reg);
+          }
+        });
+      });
+      // Check for updates every time the app gains focus
+      document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='visible')reg.update().catch(()=>{});
+      });
+    }).catch(()=>{/* SW not available in this context */});
+    // When the new SW takes control, reload once to load fresh assets
+    let _reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(_reloaded)return;_reloaded=true;
+      window.location.reload();
+    });
   }
 (function(){
   const s=document.createElement('script');
