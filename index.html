@@ -481,13 +481,13 @@ const EX = {
   'bb-row':   {n:'Barbell Row',           mg:'Back',      eq:'Barbell',   compound:true,  alt:['db-row','ares-row','halo-row','cb-row']},
   'bb-curl':  {n:'Barbell Curl',          mg:'Biceps',    eq:'Barbell',   compound:false, alt:['db-curl','halo-bc','cb-curl']},
   'bb-skull': {n:'Skull Crusher',         mg:'Triceps',   eq:'Barbell',   compound:false, alt:['db-tex','halo-te','cb-pd']},
-  'ares-hack':{n:'Hack Squat (Ares)',     mg:'Legs',      eq:'Ares 2.0',  compound:true,  alt:['bb-sq','ares-lp','db-gob']},
-  'ares-lp':  {n:'Leg Press (Ares)',      mg:'Legs',      eq:'Ares 2.0',  compound:true,  alt:['ares-hack','bb-sq','db-gob']},
-  'ares-curl':{n:'Leg Curl (Ares)',       mg:'Posterior', eq:'Ares 2.0',  compound:false, alt:['bb-rdl','db-rdl']},
-  'ares-ext': {n:'Leg Extension (Ares)',  mg:'Legs',      eq:'Ares 2.0',  compound:false, alt:['ares-hack','ares-lp']},
-  'ares-cp':  {n:'Chest Press (Ares)',    mg:'Chest',     eq:'Ares 2.0',  compound:true,  alt:['bb-bench','db-flat','halo-fly']},
-  'ares-sp':  {n:'Shoulder Press (Ares)', mg:'Shoulders', eq:'Ares 2.0',  compound:true,  alt:['bb-ohp','db-ohp','halo-sp']},
-  'ares-row': {n:'Row (Ares)',            mg:'Back',      eq:'Ares 2.0',  compound:true,  alt:['bb-row','halo-row','cb-row','db-row']},
+  'ares-hack':{n:'Hack Squat',            mg:'Legs',      eq:'Hack Squat Machine',compound:true,  alt:['bb-sq','ares-lp','db-gob']},
+  'ares-lp':  {n:'Leg Press',             mg:'Legs',      eq:'Leg Press Machine',compound:true,  alt:['ares-hack','bb-sq','db-gob']},
+  'ares-curl':{n:'Lying Leg Curl',        mg:'Posterior', eq:'Leg Curl Machine',compound:false, alt:['bb-rdl','db-rdl']},
+  'ares-ext': {n:'Leg Extension',         mg:'Legs',      eq:'Leg Extension Machine',compound:false, alt:['ares-hack','ares-lp']},
+  'ares-cp':  {n:'Machine Chest Press',   mg:'Chest',     eq:'Chest Press Machine',compound:true,  alt:['bb-bench','db-flat','halo-fly']},
+  'ares-sp':  {n:'Machine Shoulder Press',mg:'Shoulders', eq:'Shoulder Press Machine',compound:true,  alt:['bb-ohp','db-ohp','halo-sp']},
+  'ares-row': {n:'Machine Row',           mg:'Back',      eq:'Seated Row Machine',compound:true,  alt:['bb-row','halo-row','cb-row','db-row']},
   'halo-fly': {n:'Halo Chest Fly',        mg:'Chest',     eq:'Halo',      compound:false, alt:['cb-fly','db-fly','bb-bench']},
   'halo-ip':  {n:'Halo Incline Press',    mg:'Chest',     eq:'Halo',      compound:true,  alt:['bb-inc','db-inc','halo-fly']},
   'halo-row': {n:'Halo Row',              mg:'Back',      eq:'Halo',      compound:true,  alt:['bb-row','db-row','cb-row','ares-row']},
@@ -586,6 +586,40 @@ const EX = {
 
   // Total-body strength
   'db-farm':  {n:"Farmer's Carry",         mg:'Back',      eq:'Heavy DB / Trap Bar',compound:true,  alt:['db-row','bb-row']},
+
+  // ───── Machine & Specialty Additions (commercial gym equipment) ─────
+  // Requested: barrel press, coffin press + commonly-available gym machines
+  // that were missing from the library.
+
+  // Chest — machine & DB specialty
+  'db-barrel':{n:'Barrel Press',           mg:'Chest',     eq:'Dumbbells + Bench',  compound:true,  alt:['db-flat','db-incc','ares-cp']},
+  'm-incpress':{n:'Machine Incline Press', mg:'Chest',     eq:'Incline Press Machine',compound:true, alt:['bb-inc','db-inc','ares-cp']},
+
+  // Triceps — coffin press
+  'db-coffin':{n:'Coffin Press',           mg:'Triceps',   eq:'Dumbbells + Bench',  compound:false, alt:['bb-skull','db-tate','db-tex']},
+  'm-dip':    {n:'Machine Dip',            mg:'Triceps',   eq:'Dip Machine',        compound:true,  alt:['bw-dip','bb-cgbp','cb-pd']},
+
+  // Legs — machines commonly available
+  'm-seatedleg':{n:'Seated Leg Curl',      mg:'Posterior', eq:'Seated Leg Curl Machine',compound:false, alt:['ares-curl','bw-nordic','bb-rdl']},
+  'm-abductor':{n:'Hip Abduction',         mg:'Legs',      eq:'Abduction Machine',  compound:false, alt:['m-adduct','bb-hipt']},
+  'm-smithsq':{n:'Smith Machine Squat',    mg:'Legs',      eq:'Smith Machine',      compound:true,  alt:['bb-sq','ares-hack','ares-lp']},
+  'm-pendulum':{n:'Pendulum Squat',        mg:'Legs',      eq:'Pendulum Squat Machine',compound:true, alt:['ares-hack','bb-sq','ares-lp']},
+
+  // Back — machines
+  'm-latpull-mach':{n:'Machine Lat Pulldown',mg:'Back',    eq:'Lat Pulldown Machine',compound:true, alt:['cb-lat','lat-rg','bw-pullup']},
+  'm-assistpull':{n:'Assisted Pull-Up',    mg:'Back',      eq:'Assisted Pull-Up Machine',compound:true, alt:['bw-pullup','cb-lat','lat-rg']},
+  'm-highrow':{n:'Machine High Row',       mg:'Back',      eq:'High Row Machine',   compound:true,  alt:['ares-row','cb-row','bb-row']},
+
+  // Shoulders — machines
+  'm-latraise':{n:'Machine Lateral Raise', mg:'Shoulders', eq:'Lateral Raise Machine',compound:false, alt:['db-lat','cb-lat','halo-lat']},
+  'm-revpec':{n:'Reverse Pec Deck',        mg:'Shoulders', eq:'Pec Deck (Reverse)', compound:false, alt:['db-rdfly','cb-rdfly','cb-fp']},
+
+  // Biceps — machine
+  'm-curlmach':{n:'Machine Preacher Curl', mg:'Biceps',    eq:'Preacher Curl Machine',compound:false, alt:['preach','db-incc','bb-curl']},
+
+  // Smith machine bench (very common)
+  'm-smithbench':{n:'Smith Machine Bench', mg:'Chest',     eq:'Smith Machine',      compound:true,  alt:['bb-bench','ares-cp','db-flat']},
+
 
   // ───── Library Expansion Pack v2 — Variety Additions (24 exercises) ─────
   // Most-cited variations to conventional lifts: angle/grip variants, partial-range
@@ -1043,7 +1077,7 @@ function loadFamousProgram(id){
       sec: []
     };
   });
-  beginProgram(program);
+  saveActiveProgram(program);
   LS.set('lift_prog_name', fp.name);
   S.activeDayIdx = 0;
   S.swapDayIdx = null;
@@ -1533,28 +1567,6 @@ function saveHistory(h){
 }
 function getWeights(){return LS.get('lift_wts')||{}}
 function saveWeight(id,w){const wts=getWeights();wts[id]=w;LS.set('lift_wts',wts)}
-// ---- Mode-scoped weight memory: the buckets ARE the existing MODES ----
-// Stores one remembered working weight per exercise PER MODE, so switching
-// modes (strength/hypertrophy/endurance) or programs never overwrites the
-// other intensity's weight. Lossless: until a mode has its own value, the
-// resolver falls back to the legacy flat lift_wts store, then to e1RM.
-function getWeightsByMode(){return LS.get('lift_wts_mode')||{}}
-function saveWeightMode(mode,id,w){if(!mode)return;const m=getWeightsByMode();(m[mode]||(m[mode]={}))[id]=w;LS.set('lift_wts_mode',m)}
-// Resolution chain: mode weight -> legacy flat weight -> e1RM-derived -> 0
-function resolveWeight(mode,id){
-  const byMode=getWeightsByMode()[mode];
-  if(byMode&&byMode[id]!=null)return byMode[id];            // 1. remembered for THIS mode
-  const flat=getWeights()[id];
-  if(flat!=null)return flat;                                // 2. legacy single-slot fallback
-  const e1=(getPRs()[id]||{}).e1rm;                         // 3. derive from best e1RM
-  if(e1&&MODES[mode]){
-    const rng=MODES[mode].reps,tgt=Math.round((rng[0]+rng[1])/2);
-    const f=(getPrefs().oneRMFormula)||'epley';
-    const w=f==='brzycki'?e1*(37-tgt)/36:e1/(1+tgt/30);     // inverse of calcE1RM
-    return Math.round(w/5)*5;                               // 5lb rounding (matches +5 progression)
-  }
-  return 0;                                                 // 4. nothing yet -> blank
-}
 function getPrefs(){return LS.get('lift_pref')||{}}
 function savePrefs(p){LS.set('lift_pref',{...getPrefs(),...p})}
 
@@ -1630,11 +1642,11 @@ function staleAction(action){
 
 // Active program: array of {id, label, exIds, mode}
 function getActiveProgram(){return LS.get('lift_prog')||null}
-function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
+function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.2';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
+const APP_VERSION='2.0';  // bump on each deploy; shown in Settings → About
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1854,7 +1866,6 @@ function checkAutoProgression(exId, sets, mode){
   const incr=getPrefs().incrLbs||5;
   const newW=+(finalSet.w+incr).toFixed(1);
   saveWeight(exId,newW);
-  saveWeightMode(mode,exId,newW);
   const sugg=getWeightSuggestions();
   delete sugg[exId];
   LS.set('lift_sugg',sugg);
@@ -2368,7 +2379,7 @@ function cancelImport(){
 function confirmImport(){
   const pending=window._pendingImport;
   if(!pending){cancelImport();return;}
-  beginProgram(pending.program);
+  saveActiveProgram(pending.program);
   LS.set('lift_prog_name',pending.name);
   delete window._pendingImport;
   const m=document.getElementById('import-modal');if(m)m.remove();
@@ -2483,7 +2494,7 @@ function saveProgramPreset(name){
   const prog=getActiveProgram();
   if(!prog||!prog.length)return null;
   const list=getSavedPrograms();
-  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now(),mid:getActiveMid()};
+  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now()};
   list.unshift(entry);
   LS.set('lift_progs',list.slice(0,20));  // cap at 20 saved presets
   return entry;
@@ -2491,7 +2502,7 @@ function saveProgramPreset(name){
 function loadProgramPreset(idx){
   const list=getSavedPrograms();
   if(!list[idx])return false;
-  beginProgram(JSON.parse(JSON.stringify(list[idx].prog)),list[idx].mid);
+  saveActiveProgram(JSON.parse(JSON.stringify(list[idx].prog)));
   S.activeDayIdx=0;S.swapDayIdx=null;
   smartSelectDay();
   return true;
@@ -2537,43 +2548,8 @@ function checkPR(exId,w,reps){
 // Activated when a program is saved as active. Used to compute the current
 // training week and surface a deload prompt at week 5 (Helms 2015; Israetel
 // MV→MEV→MAV→MRV mesocycle model).
-// Mesocycle is keyed per-program by a stable id. A program is an ARRAY, and
-// JSON serialization drops named props off arrays, so the id can't ride on the
-// program object — it lives in its own key (lift_prog_mid = the active
-// program's id) and is remembered on each saved preset so loading one resumes
-// its cycle. Switching programs, or editing modes / reordering days within one,
-// no longer resets the week count.
-function _mesoStore(){return LS.get('lift_meso')||{};}
-function getActiveMid(){
-  let mid=LS.get('lift_prog_mid');
-  if(!mid){
-    if(!getActiveProgram())return null;            // no program → no cycle
-    mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-    LS.set('lift_prog_mid',mid);
-    // One-time migration: fold a legacy global mesocycle onto this id so an
-    // existing user keeps their current week instead of resetting to 1.
-    const all=_mesoStore();
-    if(all.activated!==undefined){
-      all[mid]={activated:all.activated,deloadDismissedWeek:all.deloadDismissedWeek||0};
-      delete all.activated;delete all.deloadDismissedWeek;
-      LS.set('lift_meso',all);
-    }
-  }
-  return mid;
-}
-function getMesoMeta(){const mid=getActiveMid();if(!mid)return{};return _mesoStore()[mid]||{};}
-function _setMesoMeta(meta){const mid=getActiveMid();if(!mid)return;const all=_mesoStore();all[mid]=meta;LS.set('lift_meso',all);}
-function setMesoActivated(){_setMesoMeta({activated:Date.now(),deloadDismissedWeek:0});}
-// Activate a program. Pass `mid` to resume a known cycle (a saved preset stores
-// its id); omit it to start a fresh id + cycle. In-place edits use
-// saveActiveProgram directly and never reach here, so they don't disturb it.
-function beginProgram(prog,mid){
-  saveActiveProgram(prog);
-  if(!mid)mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  LS.set('lift_prog_mid',mid);
-  const all=_mesoStore();
-  if(!all[mid]){all[mid]={activated:Date.now(),deloadDismissedWeek:0};LS.set('lift_meso',all);}
-}
+function getMesoMeta(){return LS.get('lift_meso')||{};}
+function setMesoActivated(){LS.set('lift_meso',{activated:Date.now(),deloadDismissedWeek:0});}
 function getMesoWeek(){
   const m=getMesoMeta();
   if(!m.activated)return 0;
@@ -2587,7 +2563,7 @@ function isDeloadDue(){
   return week>=5 && week%5===0 && (m.deloadDismissedWeek||0) < week;
 }
 function dismissDeloadPrompt(){
-  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();_setMesoMeta(m);render();
+  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();LS.set('lift_meso',m);render();
 }
 function resetMesocycle(){setMesoActivated();render();}
 
@@ -2766,7 +2742,7 @@ function showDeloadPrompt(week){
 
 function dismissDeload(week){
   const m=getMesoMeta();
-  _setMesoMeta({...m,deloadDismissedWeek:week});
+  LS.set('lift_meso',{...m,deloadDismissedWeek:week});
   const el=document.getElementById('deload-modal');if(el)el.remove();
 }
 
@@ -2889,7 +2865,7 @@ function startWorkout(dayIdx){
     day:day.id,dayLabel:day.label,mode,
     startTime:Date.now(),
     exIds:[...exIds],
-    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:resolveWeight(mode,id),reps:m.reps[1],rpe:null,done:false}))),
+    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:wts[id]||0,reps:m.reps[1],rpe:null,done:false}))),
     ei:0,si:0,
     progressions:[]   // collects auto-progression events during this workout
   };
@@ -2912,7 +2888,6 @@ function logSet(){
   cs.done=true;
   const exId=S.workout.exIds[S.workout.ei];
   saveWeight(exId,cs.w);
-  saveWeightMode(S.workout.mode,exId,cs.w);
   // PR check — fires if this set's e1RM beats the all-time best for the exercise
   const pr=checkPR(exId,cs.w,cs.reps);
   if(pr){
@@ -3003,7 +2978,7 @@ function _doEndExercise(){
   const done=w.sets[w.ei].filter(s=>s.done);
   // Use the max weight logged across all sets — not last set (which may be a back-off)
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
+  if(done.length>0)saveWeight(exId,maxW);
   // Priority 2: record this attempt for stagnation detection
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
@@ -3019,7 +2994,7 @@ function _doEndWorkout(){
   const exId=w.exIds[w.ei];
   const done=w.sets[w.ei].filter(s=>s.done);
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
+  if(done.length>0)saveWeight(exId,maxW);
   // Symmetric with _doEndExercise: track stagnation for the final exercise too
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
@@ -4162,7 +4137,7 @@ function activateCustomSplit(){
     mode:day.mode||'hypertrophy',
     pri:[],sec:[]
   }));
-  beginProgram(prog);
+  saveActiveProgram(prog);
   S.activeDayIdx=0;
   smartSelectDay();
   S.screen='home';
@@ -4264,7 +4239,7 @@ ${S.bPreview.map((day,di)=>{
 </div>`;
 }
 function activateProgram(){
-  beginProgram(S.bPreview);
+  saveActiveProgram(S.bPreview);
   S.mode=S.bGoal;
   savePrefs({mode:S.bGoal});
   S.bStep=1;S.bPreview=null;
@@ -6129,6 +6104,83 @@ const EX_INFO = {
     equip:'Heavy dumbbells, kettlebells, trap bar, or specialized farmer\'s handles',
     desc:'Walking carry with heavy implements at the sides. Winwood et al. (2014) on strongman training found significant correlation with 1RM deadlift independent of other strength markers. McGill has written extensively about loaded carry\'s role in spinal stability.',
     cues:['Stand tall — chest up, shoulders pulled back and down','Implements at sides, do not let them swing','Short, deliberate steps — quality of gait matters more than speed','Brace the core throughout — anti-lateral flexion is the key adaptation','Program by distance and load (e.g., 4 × 30 yards @ 50% BW per hand)']},
+
+  // ───── Machine & Specialty Additions — Descriptions & Cues ─────
+
+  // Chest
+  'db-barrel':{pri:['Chest'],sec:['Triceps','Shoulders'],
+    equip:'Dumbbells · Flat or slight incline bench',
+    desc:'Neutral-grip dumbbell press performed with the dumbbells held together (or close) throughout, palms facing each other. The constant inward pressure ("squeeze press") increases inner-chest and triceps tension across the whole press. Easier on the shoulders than a wide barbell press.',
+    cues:['Hold dumbbells with a neutral grip, palms facing each other','Keep the dumbbells pressed together throughout the movement','Press up while actively squeezing them inward','Lower under control to mid-chest','Slight incline biases upper chest if desired']},
+  'm-incpress':{pri:['Chest'],sec:['Triceps','Shoulders'],
+    equip:'Incline chest press machine',
+    desc:'Machine-guided incline pressing. The fixed path lets you push closer to failure safely without a spotter, making it useful for high-intensity sets at the end of a chest session.',
+    cues:['Set seat height so handles align with upper chest','Press to near lockout without slamming the stack','Control the eccentric — resist on the way back','Keep shoulder blades retracted against the pad','Good for safely training to failure without a spotter']},
+
+  // Triceps
+  'db-coffin':{pri:['Triceps'],sec:[],
+    equip:'Dumbbells · Flat bench',
+    desc:'Lying dumbbell extension where the dumbbells are lowered toward the forehead (like a skullcrusher, but with dumbbells), framing the head — hence "coffin." Provides a strong stretch on the triceps with independent-arm loading that corrects side-to-side imbalances.',
+    cues:['Lie flat, dumbbells held overhead with neutral grip','Lower the dumbbells toward your forehead/ears, elbows pointing up','Keep upper arms vertical and stationary — only the forearms move','Stop just before the dumbbells reach your head','Extend back up without locking out aggressively']},
+  'm-dip':{pri:['Triceps'],sec:['Chest','Shoulders'],
+    equip:'Assisted/weighted dip machine',
+    desc:'Machine-assisted or plate-loaded dip. The guided path allows precise loading without the balance demand of bodyweight dips — useful for progressive overload on the triceps and lower chest.',
+    cues:['Set torso angle: upright = triceps bias, leaning forward = chest bias','Lower until upper arms are roughly parallel to the floor','Drive up through the heels of the hands','Avoid shrugging — keep shoulders down','Control depth to protect the shoulder joint']},
+
+  // Legs
+  'm-seatedleg':{pri:['Posterior'],sec:[],
+    equip:'Seated leg curl machine',
+    desc:'Seated hamstring curl. Research (e.g., Maeo et al. 2021) shows the seated position — with the hip flexed — trains the hamstrings at longer muscle lengths and produces greater hypertrophy than the lying curl. A strong complement to lying leg curls.',
+    cues:['Adjust back pad so knees align with the pivot point','Secure the thigh pad snugly above the knees','Curl down fully, squeezing the hamstrings','Control the eccentric — do not let the stack slam','The flexed-hip position trains hamstrings at long lengths']},
+  'm-abductor':{pri:['Legs'],sec:['Posterior'],
+    equip:'Hip abduction machine',
+    desc:'Seated hip abduction — pushing the knees outward against resistance. Targets the gluteus medius and minimus, important for hip stability and a common weak point that limits squat and single-leg performance.',
+    cues:['Sit upright with back against the pad','Pads against the outer thighs, not the knees','Push knees outward through a full range','Pause at peak abduction and squeeze','Control the return — resist the stack inward']},
+  'm-smithsq':{pri:['Legs'],sec:['Posterior','Core'],
+    equip:'Smith machine',
+    desc:'Squat performed on the fixed vertical bar path of a Smith machine. The guided path removes balance demand, letting you focus on the legs and push closer to failure. Foot placement can be shifted forward to bias quads or back to bias glutes.',
+    cues:['Position feet slightly forward of the bar for knee safety','Unrack by rotating the bar; brace before descending','Descend to at least parallel under control','Drive up through midfoot','Re-rack by rotating the bar at the top']},
+  'm-pendulum':{pri:['Legs'],sec:['Posterior'],
+    equip:'Pendulum squat machine',
+    desc:'Squat on an arc-path machine that keeps the torso supported and loads the quads through a deep, knee-friendly range. Increasingly common in well-equipped gyms; excellent for quad hypertrophy with minimal spinal load.',
+    cues:['Back and shoulders firmly against the pads','Feet positioned for a comfortable deep squat','Descend slowly through a full range of motion','Drive up without locking out hard at the top','Excellent for high-rep quad-focused work']},
+
+  // Back
+  'm-latpull-mach':{pri:['Back'],sec:['Biceps'],
+    equip:'Plate-loaded or selectorized lat pulldown machine',
+    desc:'Machine lat pulldown with a fixed path and chest pad on some models. Functionally similar to the cable pulldown but with a more stable line of pull, allowing heavier loading and easier progressive overload tracking.',
+    cues:['Secure thighs under the pad','Grip slightly wider than shoulders','Pull to the upper chest, driving elbows down','Squeeze the lats at the bottom','Control the stretch back to full overhead extension']},
+  'm-assistpull':{pri:['Back'],sec:['Biceps'],
+    equip:'Assisted pull-up machine',
+    desc:'Pull-up with counterweight assistance from a machine, letting you train the full pull-up pattern before you can do bodyweight reps. The assistance is the opposite of added weight — more counterweight makes it easier.',
+    cues:['Kneel or stand on the assist platform','Set assistance weight: MORE weight = MORE help','Pull through a full range to chin over the bar','Lower under control to a full hang','Reduce assistance over time to progress toward bodyweight']},
+  'm-highrow':{pri:['Back'],sec:['Biceps'],
+    equip:'Plate-loaded high row machine (e.g., Hammer Strength)',
+    desc:'Chest-supported machine row pulling on a downward-diagonal path. The high angle emphasizes the upper back and lats. Independent arms on most models correct side-to-side imbalances.',
+    cues:['Chest firmly against the pad','Grip the handles and pull elbows down and back','Squeeze shoulder blades at the end of the pull','Control the stretch forward without rounding','Each arm works independently — match effort on both sides']},
+
+  // Shoulders
+  'm-latraise':{pri:['Shoulders'],sec:[],
+    equip:'Lateral raise machine',
+    desc:'Machine lateral raise with pads against the outer arms. The fixed path keeps constant tension on the lateral deltoid and removes momentum, making it stricter than dumbbell laterals.',
+    cues:['Adjust seat so shoulders align with the pivot','Pads against the outer upper arms','Raise to about shoulder height — no higher','Lead with the elbows, not the hands','Lower slowly; the machine keeps tension constant']},
+  'm-revpec':{pri:['Shoulders'],sec:['Back'],
+    equip:'Pec deck machine (reverse setting)',
+    desc:'Rear delt fly performed on a pec deck facing into the machine. Isolates the rear deltoids with a fixed path and constant tension — one of the most consistent rear-delt builders available.',
+    cues:['Face the pad, chest against it','Grip handles with arms roughly parallel to floor','Pull the handles back in a wide arc','Squeeze the rear delts and mid-back at the end','Control the return — resist the stack forward']},
+
+  // Biceps
+  'm-curlmach':{pri:['Biceps'],sec:[],
+    equip:'Machine preacher / seated curl machine',
+    desc:'Machine bicep curl with the upper arms fixed against a pad. The guided path removes body english and provides smooth resistance, ideal for strict high-rep work and training close to failure safely.',
+    cues:['Upper arms flat against the pad, armpits at the top edge','Adjust seat so elbows align with the pivot','Curl through a full range without lifting off the pad','Squeeze at the top','Control the eccentric to a near-full stretch']},
+
+  // Smith bench
+  'm-smithbench':{pri:['Chest'],sec:['Triceps','Shoulders'],
+    equip:'Smith machine + flat bench',
+    desc:'Bench press on the fixed bar path of a Smith machine. The guided path removes the need for a spotter and lets you push close to failure safely. Useful for chest-focused volume without stabilizer fatigue.',
+    cues:['Position the bench so the bar lowers to mid-chest','Retract shoulder blades and plant feet','Unrack by rotating the bar hooks','Lower under control, press to lockout','Re-rack by rotating the bar at the top']},
+
 
   // ───── Variety Pack — Descriptions & Coaching Cues ─────
 
