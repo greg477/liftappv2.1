@@ -469,57 +469,57 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 // DATA — EXERCISES  (compound:true = primary compound movement)
 // =====================================================================
 const EX = {
-  'bb-sq':    {n:'Barbell Back Squat',    mg:'Legs',      eq:'Barbell',   compound:true,  alt:['ares-hack','ares-lp','bb-fsq','db-gob']},
-  'bb-fsq':   {n:'Front Squat',           mg:'Legs',      eq:'Barbell',   compound:true,  alt:['bb-sq','ares-hack','db-gob']},
-  'bb-dl':    {n:'Conventional Deadlift', mg:'Posterior', eq:'Barbell',   compound:true,  alt:['bb-rdl','ares-hack','bb-trap']},
-  'bb-trap':  {n:'Trap Bar Deadlift',     mg:'Posterior', eq:'Barbell',   compound:true,  alt:['bb-dl','bb-rdl','ares-lp']},
-  'bb-rdl':   {n:'Romanian Deadlift',     mg:'Posterior', eq:'Barbell',   compound:false, alt:['db-rdl','ares-curl','bb-gm']},
-  'bb-gm':    {n:'Good Morning',          mg:'Posterior', eq:'Barbell',   compound:false, alt:['bb-rdl','db-rdl','ares-curl']},
-  'bb-bench': {n:'Barbell Bench Press',   mg:'Chest',     eq:'Barbell',   compound:true,  alt:['db-flat','ares-cp','halo-fly','bb-inc']},
-  'bb-inc':   {n:'Incline Bench Press',   mg:'Chest',     eq:'Barbell',   compound:true,  alt:['db-inc','halo-ip','bb-bench']},
-  'bb-ohp':   {n:'Overhead Press',        mg:'Shoulders', eq:'Barbell',   compound:true,  alt:['db-ohp','ares-sp','halo-sp']},
-  'bb-row':   {n:'Barbell Row',           mg:'Back',      eq:'Barbell',   compound:true,  alt:['db-row','ares-row','halo-row','cb-row']},
-  'bb-curl':  {n:'Barbell Curl',          mg:'Biceps',    eq:'Barbell',   compound:false, alt:['db-curl','halo-bc','cb-curl']},
-  'bb-skull': {n:'Skull Crusher',         mg:'Triceps',   eq:'Barbell',   compound:false, alt:['db-tex','halo-te','cb-pd']},
-  'ares-hack':{n:'Hack Squat',            mg:'Legs',      eq:'Hack Squat Machine',compound:true,  alt:['bb-sq','ares-lp','db-gob']},
-  'ares-lp':  {n:'Leg Press',             mg:'Legs',      eq:'Leg Press Machine',compound:true,  alt:['ares-hack','bb-sq','db-gob']},
-  'ares-curl':{n:'Lying Leg Curl',        mg:'Posterior', eq:'Leg Curl Machine',compound:false, alt:['m-seatedleg','bb-rdl','db-rdl']},
-  'ares-ext': {n:'Leg Extension',         mg:'Legs',      eq:'Leg Extension Machine',compound:false, alt:['ares-hack','ares-lp']},
-  'ares-cp':  {n:'Machine Chest Press',   mg:'Chest',     eq:'Chest Press Machine',compound:true,  alt:['bb-bench','db-flat','halo-fly']},
-  'ares-sp':  {n:'Machine Shoulder Press',mg:'Shoulders', eq:'Shoulder Press Machine',compound:true,  alt:['bb-ohp','db-ohp','halo-sp']},
-  'ares-row': {n:'Machine Row',           mg:'Back',      eq:'Seated Row Machine',compound:true,  alt:['bb-row','halo-row','cb-row','db-row']},
-  'halo-fly': {n:'Halo Chest Fly',        mg:'Chest',     eq:'Halo',      compound:false, alt:['cb-fly','db-fly','bb-bench']},
-  'halo-ip':  {n:'Halo Incline Press',    mg:'Chest',     eq:'Halo',      compound:true,  alt:['bb-inc','db-inc','halo-fly']},
-  'halo-row': {n:'Halo Row',              mg:'Back',      eq:'Halo',      compound:true,  alt:['bb-row','db-row','cb-row','ares-row']},
-  'halo-sp':  {n:'Halo Shoulder Press',   mg:'Shoulders', eq:'Halo',      compound:true,  alt:['bb-ohp','db-ohp','ares-sp']},
-  'halo-lat': {n:'Halo Lateral Raise',    mg:'Shoulders', eq:'Halo',      compound:false, alt:['db-lat','cb-lat']},
-  'halo-te':  {n:'Halo Tricep Ext.',      mg:'Triceps',   eq:'Halo',      compound:false, alt:['bb-skull','db-tex','cb-pd']},
-  'halo-bc':  {n:'Halo Bicep Curl',       mg:'Biceps',    eq:'Halo',      compound:false, alt:['bb-curl','db-curl','cb-curl']},
-  'halo-po':  {n:'Halo Pullover',         mg:'Back',      eq:'Halo',      compound:false, alt:['db-po','cb-po']},
-  'db-flat':  {n:'DB Flat Press',         mg:'Chest',     eq:'Dumbbell',  compound:true,  alt:['bb-bench','ares-cp','halo-fly']},
-  'db-inc':   {n:'DB Incline Press',      mg:'Chest',     eq:'Dumbbell',  compound:true,  alt:['bb-inc','halo-ip']},
-  'db-ohp':   {n:'DB Shoulder Press',     mg:'Shoulders', eq:'Dumbbell',  compound:true,  alt:['bb-ohp','ares-sp','halo-sp']},
-  'db-lat':   {n:'DB Lateral Raise',      mg:'Shoulders', eq:'Dumbbell',  compound:false, alt:['halo-lat','cb-lat']},
-  'db-front': {n:'DB Front Raise',        mg:'Shoulders', eq:'Dumbbell',  compound:false, alt:['db-lat','halo-lat']},
-  'db-row':   {n:'DB One-Arm Row',        mg:'Back',      eq:'Dumbbell',  compound:true,  alt:['bb-row','halo-row','ares-row']},
-  'db-po':    {n:'DB Pullover',           mg:'Back',      eq:'Dumbbell',  compound:false, alt:['halo-po','cb-po']},
-  'db-rdl':   {n:'DB Romanian Deadlift',  mg:'Posterior', eq:'Dumbbell',  compound:false, alt:['bb-rdl','ares-curl']},
-  'db-gob':   {n:'Goblet Squat',          mg:'Legs',      eq:'Dumbbell',  compound:true,  alt:['ares-hack','ares-lp','bb-sq']},
-  'db-curl':  {n:'DB Bicep Curl',         mg:'Biceps',    eq:'Dumbbell',  compound:false, alt:['bb-curl','halo-bc','cb-curl']},
+  'bb-sq':    {n:'Barbell Back Squat',    mg:'Legs',      eq:'Barbell',   compound:true,  alt:['m-hack','m-legpress','bb-fsq','db-gob']},
+  'bb-fsq':   {n:'Front Squat',           mg:'Legs',      eq:'Barbell',   compound:true,  alt:['bb-sq','m-hack','db-gob']},
+  'bb-dl':    {n:'Conventional Deadlift', mg:'Posterior', eq:'Barbell',   compound:true,  alt:['bb-rdl','m-hack','bb-trap']},
+  'bb-trap':  {n:'Trap Bar Deadlift',     mg:'Posterior', eq:'Barbell',   compound:true,  alt:['bb-dl','bb-rdl','m-legpress']},
+  'bb-rdl':   {n:'Romanian Deadlift',     mg:'Posterior', eq:'Barbell',   compound:false, alt:['db-rdl','m-legcurl','bb-gm']},
+  'bb-gm':    {n:'Good Morning',          mg:'Posterior', eq:'Barbell',   compound:false, alt:['bb-rdl','db-rdl','m-legcurl']},
+  'bb-bench': {n:'Barbell Bench Press',   mg:'Chest',     eq:'Barbell',   compound:true,  alt:['db-flat','m-chestpress','cb-crossover','bb-inc']},
+  'bb-inc':   {n:'Incline Bench Press',   mg:'Chest',     eq:'Barbell',   compound:true,  alt:['db-inc','m-inclinepress','bb-bench']},
+  'bb-ohp':   {n:'Overhead Press',        mg:'Shoulders', eq:'Barbell',   compound:true,  alt:['db-ohp','m-shoulderpress','cb-shoulderpress']},
+  'bb-row':   {n:'Barbell Row',           mg:'Back',      eq:'Barbell',   compound:true,  alt:['db-row','m-row','cb-seatedrow','cb-row']},
+  'bb-curl':  {n:'Barbell Curl',          mg:'Biceps',    eq:'Barbell',   compound:false, alt:['db-curl','m-bicepcurl','cb-curl']},
+  'bb-skull': {n:'Skull Crusher',         mg:'Triceps',   eq:'Barbell',   compound:false, alt:['db-tex','cb-tricepext','cb-pd']},
+  'm-hack':{n:'Hack Squat',     mg:'Legs',      eq:'Hack Squat Machine',  compound:true,  alt:['bb-sq','m-legpress','db-gob']},
+  'm-legpress':  {n:'Leg Press',      mg:'Legs',      eq:'Leg Press Machine',  compound:true,  alt:['m-hack','bb-sq','db-gob']},
+  'm-legcurl':{n:'Lying Leg Curl',       mg:'Posterior', eq:'Leg Curl Machine',  compound:false, alt:['bb-rdl','db-rdl']},
+  'm-legext': {n:'Leg Extension',  mg:'Legs',      eq:'Leg Extension Machine',  compound:false, alt:['m-hack','m-legpress']},
+  'm-chestpress':  {n:'Machine Chest Press',    mg:'Chest',     eq:'Chest Press Machine',  compound:true,  alt:['bb-bench','db-flat','cb-crossover']},
+  'm-shoulderpress':  {n:'Machine Shoulder Press', mg:'Shoulders', eq:'Shoulder Press Machine',  compound:true,  alt:['bb-ohp','db-ohp','cb-shoulderpress']},
+  'm-row': {n:'Seated Machine Row',            mg:'Back',      eq:'Row Machine',  compound:true,  alt:['bb-row','cb-seatedrow','cb-row','db-row']},
+  'cb-crossover': {n:'Cable Crossover',        mg:'Chest',     eq:'Cable / Functional Trainer',      compound:false, alt:['cb-fly','db-fly','bb-bench']},
+  'm-inclinepress':  {n:'Machine Incline Press',    mg:'Chest',     eq:'Incline Press Machine',      compound:true,  alt:['bb-inc','db-inc','cb-crossover']},
+  'cb-seatedrow': {n:'Seated Cable Row',              mg:'Back',      eq:'Cable Row Station',      compound:true,  alt:['bb-row','db-row','cb-row','m-row']},
+  'cb-shoulderpress':  {n:'Cable Shoulder Press',   mg:'Shoulders', eq:'Cable / Functional Trainer',      compound:true,  alt:['bb-ohp','db-ohp','m-shoulderpress']},
+  'm-latraise': {n:'Machine Lateral Raise',    mg:'Shoulders', eq:'Lateral Raise Machine',      compound:false, alt:['db-lat','cb-lat']},
+  'cb-tricepext':  {n:'Cable Triceps Extension',      mg:'Triceps',   eq:'Cable / Functional Trainer',      compound:false, alt:['bb-skull','db-tex','cb-pd']},
+  'm-bicepcurl':  {n:'Machine Bicep Curl',       mg:'Biceps',    eq:'Bicep Curl Machine',      compound:false, alt:['bb-curl','db-curl','cb-curl']},
+  'm-pullover':  {n:'Machine Pullover',         mg:'Back',      eq:'Pullover Machine / Cable',      compound:false, alt:['db-po','cb-po']},
+  'db-flat':  {n:'DB Flat Press',         mg:'Chest',     eq:'Dumbbell',  compound:true,  alt:['bb-bench','m-chestpress','cb-crossover']},
+  'db-inc':   {n:'DB Incline Press',      mg:'Chest',     eq:'Dumbbell',  compound:true,  alt:['bb-inc','m-inclinepress']},
+  'db-ohp':   {n:'DB Shoulder Press',     mg:'Shoulders', eq:'Dumbbell',  compound:true,  alt:['bb-ohp','m-shoulderpress','cb-shoulderpress']},
+  'db-lat':   {n:'DB Lateral Raise',      mg:'Shoulders', eq:'Dumbbell',  compound:false, alt:['m-latraise','cb-lat']},
+  'db-front': {n:'DB Front Raise',        mg:'Shoulders', eq:'Dumbbell',  compound:false, alt:['db-lat','m-latraise']},
+  'db-row':   {n:'DB One-Arm Row',        mg:'Back',      eq:'Dumbbell',  compound:true,  alt:['bb-row','cb-seatedrow','m-row']},
+  'db-po':    {n:'DB Pullover',           mg:'Back',      eq:'Dumbbell',  compound:false, alt:['m-pullover','cb-po']},
+  'db-rdl':   {n:'DB Romanian Deadlift',  mg:'Posterior', eq:'Dumbbell',  compound:false, alt:['bb-rdl','m-legcurl']},
+  'db-gob':   {n:'Goblet Squat',          mg:'Legs',      eq:'Dumbbell',  compound:true,  alt:['m-hack','m-legpress','bb-sq']},
+  'db-curl':  {n:'DB Bicep Curl',         mg:'Biceps',    eq:'Dumbbell',  compound:false, alt:['bb-curl','m-bicepcurl','cb-curl']},
   'db-ham':   {n:'Hammer Curl',           mg:'Biceps',    eq:'Dumbbell',  compound:false, alt:['db-curl','cb-curl']},
-  'db-tex':   {n:'DB Tricep Extension',   mg:'Triceps',   eq:'Dumbbell',  compound:false, alt:['bb-skull','halo-te','cb-pd']},
-  'db-lunge': {n:'DB Walking Lunge',      mg:'Legs',      eq:'Dumbbell',  compound:false, alt:['ares-hack','ares-lp','db-gob']},
-  'db-fly':   {n:'DB Chest Fly',          mg:'Chest',     eq:'Dumbbell',  compound:false, alt:['halo-fly','cb-fly']},
-  'bw-pullup':{n:'Pull-Up / Chin-Up',     mg:'Back',      eq:'Bodyweight',compound:true,  alt:['cb-pd2','halo-row','cb-row']},
-  'bw-dip':   {n:'Chest Dip',             mg:'Chest',     eq:'Bodyweight',compound:true,  alt:['db-flat','halo-te','cb-pd']},
-  'cb-row':   {n:'Cable Row',             mg:'Back',      eq:'Cable',     compound:true,  alt:['bb-row','halo-row','ares-row']},
-  'cb-pd2':   {n:'Lat Pulldown',          mg:'Back',      eq:'Cable',     compound:true,  alt:['bw-pullup','halo-row','cb-row']},
-  'cb-fly':   {n:'Cable Chest Fly',       mg:'Chest',     eq:'Cable',     compound:false, alt:['halo-fly','db-fly']},
-  'cb-pd':    {n:'Cable Tricep Pushdown', mg:'Triceps',   eq:'Cable',     compound:false, alt:['halo-te','db-tex','bb-skull']},
-  'cb-curl':  {n:'Cable Bicep Curl',      mg:'Biceps',    eq:'Cable',     compound:false, alt:['db-curl','bb-curl','halo-bc']},
-  'cb-lat':   {n:'Cable Lateral Raise',   mg:'Shoulders', eq:'Cable',     compound:false, alt:['db-lat','halo-lat']},
-  'cb-po':    {n:'Cable Pullover',        mg:'Back',      eq:'Cable',     compound:false, alt:['halo-po','db-po']},
-  'cb-fp':    {n:'Face Pull',             mg:'Shoulders', eq:'Cable',     compound:false, alt:['db-lat','halo-lat']},
+  'db-tex':   {n:'DB Tricep Extension',   mg:'Triceps',   eq:'Dumbbell',  compound:false, alt:['bb-skull','cb-tricepext','cb-pd']},
+  'db-lunge': {n:'DB Walking Lunge',      mg:'Legs',      eq:'Dumbbell',  compound:false, alt:['m-hack','m-legpress','db-gob']},
+  'db-fly':   {n:'DB Chest Fly',          mg:'Chest',     eq:'Dumbbell',  compound:false, alt:['cb-crossover','cb-fly']},
+  'bw-pullup':{n:'Pull-Up / Chin-Up',     mg:'Back',      eq:'Bodyweight',compound:true,  alt:['cb-pd2','cb-seatedrow','cb-row']},
+  'bw-dip':   {n:'Chest Dip',             mg:'Chest',     eq:'Bodyweight',compound:true,  alt:['db-flat','cb-tricepext','cb-pd']},
+  'cb-row':   {n:'Cable Row',             mg:'Back',      eq:'Cable',     compound:true,  alt:['bb-row','cb-seatedrow','m-row']},
+  'cb-pd2':   {n:'Lat Pulldown',          mg:'Back',      eq:'Cable',     compound:true,  alt:['bw-pullup','cb-seatedrow','cb-row']},
+  'cb-fly':   {n:'Cable Chest Fly',       mg:'Chest',     eq:'Cable',     compound:false, alt:['cb-crossover','db-fly']},
+  'cb-pd':    {n:'Cable Tricep Pushdown', mg:'Triceps',   eq:'Cable',     compound:false, alt:['cb-tricepext','db-tex','bb-skull']},
+  'cb-curl':  {n:'Cable Bicep Curl',      mg:'Biceps',    eq:'Cable',     compound:false, alt:['db-curl','bb-curl','m-bicepcurl']},
+  'cb-lat':   {n:'Cable Lateral Raise',   mg:'Shoulders', eq:'Cable',     compound:false, alt:['db-lat','m-latraise']},
+  'cb-po':    {n:'Cable Pullover',        mg:'Back',      eq:'Cable',     compound:false, alt:['m-pullover','db-po']},
+  'cb-fp':    {n:'Face Pull',             mg:'Shoulders', eq:'Cable',     compound:false, alt:['db-lat','m-latraise']},
   'cb-pal':   {n:'Pallof Press',          mg:'Core',      eq:'Cable',     compound:true,  alt:['co-plank','co-ab']},
   'co-plank': {n:'Plank',                 mg:'Core',      eq:'Bodyweight',compound:false, alt:['co-ab','co-db']},
   'co-ab':    {n:'Ab Wheel Rollout',      mg:'Core',      eq:'Bodyweight',compound:false, alt:['co-plank','co-db']},
@@ -531,23 +531,23 @@ const EX = {
 
   // Legs — unilateral & calves
   'db-bsplit':{n:'Bulgarian Split Squat',  mg:'Legs',      eq:'Dumbbell + Bench',   compound:true,  alt:['db-lunge','db-rlunge','db-step','db-gob']},
-  'm-calf-s': {n:'Standing Calf Raise',    mg:'Legs',      eq:'Calf Raise / DB',    compound:false, alt:['m-calf-st','ares-lp']},
+  'm-calf-s': {n:'Standing Calf Raise',    mg:'Legs',      eq:'Calf Raise / DB',    compound:false, alt:['m-calf-st','m-legpress']},
   'm-calf-st':{n:'Seated Calf Raise',      mg:'Legs',      eq:'Seated Calf / DB',   compound:false, alt:['m-calf-s']},
   'db-rlunge':{n:'Reverse Lunge',          mg:'Legs',      eq:'Dumbbell',           compound:true,  alt:['db-lunge','db-bsplit','db-step']},
   'db-step':  {n:'Step-Up',                mg:'Legs',      eq:'Dumbbell + Box',     compound:true,  alt:['db-bsplit','db-lunge','db-rlunge']},
 
   // Posterior — glutes, hamstrings, lower back
-  'bb-hipt':  {n:'Barbell Hip Thrust',     mg:'Posterior', eq:'Barbell + Bench',    compound:true,  alt:['bb-rdl','ares-curl','ext-back']},
+  'bb-hipt':  {n:'Barbell Hip Thrust',     mg:'Posterior', eq:'Barbell + Bench',    compound:true,  alt:['bb-rdl','m-legcurl','ext-back']},
   'db-slrdl': {n:'Single-Leg RDL',         mg:'Posterior', eq:'Dumbbell',           compound:true,  alt:['db-rdl','bb-rdl','ext-back']},
   'ext-back': {n:'45° Back Extension',     mg:'Posterior', eq:'Hyperextension Bench',compound:false,alt:['bb-rdl','db-rdl','bb-gm']},
-  'bw-nordic':{n:'Nordic Hamstring Curl',  mg:'Posterior', eq:'Bodyweight + Anchor',compound:false, alt:['ares-curl','bw-ghr','db-slrdl']},
+  'bw-nordic':{n:'Nordic Hamstring Curl',  mg:'Posterior', eq:'Bodyweight + Anchor',compound:false, alt:['m-legcurl','bw-ghr','db-slrdl']},
 
   // Shoulders — rear delts & strict pressing
   'db-rdfly': {n:'DB Rear Delt Fly',       mg:'Shoulders', eq:'Dumbbell + Bench',   compound:false, alt:['cb-fp','db-lat']},
-  'db-sohp':  {n:'Seated DB Press',        mg:'Shoulders', eq:'Dumbbell + Bench',   compound:true,  alt:['db-ohp','bb-ohp','ares-sp']},
+  'db-sohp':  {n:'Seated DB Press',        mg:'Shoulders', eq:'Dumbbell + Bench',   compound:true,  alt:['db-ohp','bb-ohp','m-shoulderpress']},
 
   // Back — thickness & grip variation
-  'tbar-row': {n:'Chest-Supported Row',    mg:'Back',      eq:'T-Bar / Incline Bench',compound:true,alt:['bb-row','db-row','ares-row','cb-row']},
+  'tbar-row': {n:'Chest-Supported Row',    mg:'Back',      eq:'T-Bar / Incline Bench',compound:true,alt:['bb-row','db-row','m-row','cb-row']},
   'lat-rg':   {n:'Reverse-Grip Pulldown',  mg:'Back',      eq:'Cable + Lat Bar',    compound:true,  alt:['cb-lat','bw-pullup']},
 
   // Biceps — stretched-position & isolation
@@ -567,7 +567,7 @@ const EX = {
 
   // Squat strength variants
   'bb-psq':   {n:'Pause Squat',            mg:'Legs',      eq:'Barbell + Rack',     compound:true,  alt:['bb-sq','bb-boxsq','bb-fsq']},
-  'bb-boxsq': {n:'Box Squat',              mg:'Legs',      eq:'Barbell + Box + Rack',compound:true, alt:['bb-sq','bb-psq','ares-lp']},
+  'bb-boxsq': {n:'Box Squat',              mg:'Legs',      eq:'Barbell + Box + Rack',compound:true, alt:['bb-sq','bb-psq','m-legpress']},
 
   // Deadlift variants
   'bb-sumo':  {n:'Sumo Deadlift',          mg:'Posterior', eq:'Barbell',            compound:true,  alt:['bb-dl','bb-trap','bb-defdl']},
@@ -581,53 +581,19 @@ const EX = {
   'bb-pushp': {n:'Push Press',             mg:'Shoulders', eq:'Barbell + Rack',     compound:true,  alt:['bb-ohp','db-ohp','db-sohp']},
 
   // Posterior chain strength
-  'bw-ghr':   {n:'Glute Ham Raise',        mg:'Posterior', eq:'GHD Bench',          compound:true,  alt:['bw-nordic','ares-curl','ext-back']},
+  'bw-ghr':   {n:'Glute Ham Raise',        mg:'Posterior', eq:'GHD Bench',          compound:true,  alt:['bw-nordic','m-legcurl','ext-back']},
   'm-revhyp': {n:'Reverse Hyperextension', mg:'Posterior', eq:'Reverse Hyper Bench',compound:false, alt:['ext-back','bb-rdl','bb-gm']},
 
   // Total-body strength
   'db-farm':  {n:"Farmer's Carry",         mg:'Back',      eq:'Heavy DB / Trap Bar',compound:true,  alt:['db-row','bb-row']},
-
-  // ───── Machine & Specialty Additions (commercial gym equipment) ─────
-  // Requested: barrel press, coffin press + commonly-available gym machines
-  // that were missing from the library.
-
-  // Chest — machine & DB specialty
-  'db-barrel':{n:'Barrel Press',           mg:'Chest',     eq:'Dumbbells + Bench',  compound:true,  alt:['db-flat','db-incc','ares-cp']},
-  'm-incpress':{n:'Machine Incline Press', mg:'Chest',     eq:'Incline Press Machine',compound:true, alt:['bb-inc','db-inc','ares-cp']},
-
-  // Triceps — coffin press
-  'db-coffin':{n:'Coffin Press',           mg:'Triceps',   eq:'Dumbbells + Bench',  compound:false, alt:['bb-skull','db-tate','db-tex']},
-  'm-dip':    {n:'Machine Dip',            mg:'Triceps',   eq:'Dip Machine',        compound:true,  alt:['bw-dip','bb-cgbp','cb-pd']},
-
-  // Legs — machines commonly available
-  'm-seatedleg':{n:'Seated Leg Curl',      mg:'Posterior', eq:'Seated Leg Curl Machine',compound:false, alt:['ares-curl','bw-nordic','bb-rdl']},
-  'm-abductor':{n:'Hip Abduction',         mg:'Legs',      eq:'Abduction Machine',  compound:false, alt:['m-adduct','bb-hipt']},
-  'm-smithsq':{n:'Smith Machine Squat',    mg:'Legs',      eq:'Smith Machine',      compound:true,  alt:['bb-sq','ares-hack','ares-lp']},
-  'm-pendulum':{n:'Pendulum Squat',        mg:'Legs',      eq:'Pendulum Squat Machine',compound:true, alt:['ares-hack','bb-sq','ares-lp']},
-
-  // Back — machines
-  'm-latpull-mach':{n:'Machine Lat Pulldown',mg:'Back',    eq:'Lat Pulldown Machine',compound:true, alt:['cb-lat','lat-rg','bw-pullup']},
-  'm-assistpull':{n:'Assisted Pull-Up',    mg:'Back',      eq:'Assisted Pull-Up Machine',compound:true, alt:['bw-pullup','cb-lat','lat-rg']},
-  'm-highrow':{n:'Machine High Row',       mg:'Back',      eq:'High Row Machine',   compound:true,  alt:['ares-row','cb-row','bb-row']},
-
-  // Shoulders — machines
-  'm-latraise':{n:'Machine Lateral Raise', mg:'Shoulders', eq:'Lateral Raise Machine',compound:false, alt:['db-lat','cb-lat','halo-lat']},
-  'm-revpec':{n:'Reverse Pec Deck',        mg:'Shoulders', eq:'Pec Deck (Reverse)', compound:false, alt:['db-rdfly','cb-rdfly','cb-fp']},
-
-  // Biceps — machine
-  'm-curlmach':{n:'Machine Preacher Curl', mg:'Biceps',    eq:'Preacher Curl Machine',compound:false, alt:['preach','db-incc','bb-curl']},
-
-  // Smith machine bench (very common)
-  'm-smithbench':{n:'Smith Machine Bench', mg:'Chest',     eq:'Smith Machine',      compound:true,  alt:['bb-bench','ares-cp','db-flat']},
-
 
   // ───── Library Expansion Pack v2 — Variety Additions (24 exercises) ─────
   // Most-cited variations to conventional lifts: angle/grip variants, partial-range
   // and specialty movements, and rotational/anti-rotational core.
 
   // Chest variations
-  'db-dec':   {n:'Decline DB Press',       mg:'Chest',     eq:'DB + Decline Bench',         compound:true,  alt:['db-flat','bb-bench','ares-cp']},
-  'm-pecd':   {n:'Pec Deck',               mg:'Chest',     eq:'Pec Deck Machine',           compound:false, alt:['cb-fly','db-fly','halo-fly']},
+  'db-dec':   {n:'Decline DB Press',       mg:'Chest',     eq:'DB + Decline Bench',         compound:true,  alt:['db-flat','bb-bench','m-chestpress']},
+  'm-pecd':   {n:'Pec Deck',               mg:'Chest',     eq:'Pec Deck Machine',           compound:false, alt:['cb-fly','db-fly','cb-crossover']},
   'bb-larsen':{n:'Larsen Press',           mg:'Chest',     eq:'Barbell + Bench',            compound:true,  alt:['bb-bench','bb-pbench','bb-floor']},
 
   // Back — rows, traps, partials
@@ -638,7 +604,7 @@ const EX = {
 
   // Legs — alternative loading
   'bb-zerch': {n:'Zercher Squat',          mg:'Legs',      eq:'Barbell + Elbow Pad',        compound:true,  alt:['bb-fsq','bb-sq','bb-boxsq']},
-  'm-belt':   {n:'Belt Squat',             mg:'Legs',      eq:'Belt Squat Machine',         compound:true,  alt:['bb-sq','ares-hack','ares-lp']},
+  'm-belt':   {n:'Belt Squat',             mg:'Legs',      eq:'Belt Squat Machine',         compound:true,  alt:['bb-sq','m-hack','m-legpress']},
   'm-adduct': {n:'Hip Adduction',          mg:'Legs',      eq:'Adduction Machine / Cable',  compound:false, alt:['db-bsplit']},
 
   // Posterior — hinge variations
@@ -655,11 +621,11 @@ const EX = {
   // Biceps — peak isolation & grip variants
   'db-conc':  {n:'Concentration Curl',     mg:'Biceps',    eq:'Dumbbell + Bench',           compound:false, alt:['db-curl','preach']},
   'db-spider':{n:'Spider Curl',            mg:'Biceps',    eq:'Dumbbell + Incline Bench',   compound:false, alt:['preach','db-incc']},
-  'bb-rev':   {n:'Reverse Curl',           mg:'Biceps',    eq:'EZ-bar or Dumbbells',        compound:false, alt:['bb-curl','db-curl','halo-bc']},
+  'bb-rev':   {n:'Reverse Curl',           mg:'Biceps',    eq:'EZ-bar or Dumbbells',        compound:false, alt:['bb-curl','db-curl','m-bicepcurl']},
 
   // Triceps — compound & DB variant
   'bb-jm':    {n:'JM Press',               mg:'Triceps',   eq:'Barbell + Bench',            compound:true,  alt:['bb-skull','bb-cgbp','db-tex']},
-  'db-tate':  {n:'Tate Press',             mg:'Triceps',   eq:'Dumbbells + Bench',          compound:false, alt:['db-tex','bb-skull','halo-te']},
+  'db-tate':  {n:'Tate Press',             mg:'Triceps',   eq:'Dumbbells + Bench',          compound:false, alt:['db-tex','bb-skull','cb-tricepext']},
 
   // Core — McGill Big 3 & rotational
   'co-bd':    {n:'Bird Dog',               mg:'Core',      eq:'Bodyweight',                 compound:false, alt:['co-plank','bw-splank']},
@@ -671,13 +637,13 @@ const EX = {
 // Back: row-type first so Upper-body days don't default to deadlifts.
 // Posterior: deadlift first since it IS the primary posterior compound.
 const MG_EX = {
-  'Chest':     {comp:['bb-bench','bb-inc','bw-dip','ares-cp','halo-ip'],  acc:['db-flat','db-inc','halo-fly','cb-fly','db-fly']},
-  'Back':      {comp:['bb-row','bw-pullup','ares-row','halo-row','bb-trap','bb-dl'], acc:['cb-pd2','db-row','cb-row','halo-po','cb-po','cb-fp']},
-  'Legs':      {comp:['bb-sq','ares-hack','ares-lp','bb-fsq'],            acc:['db-gob','db-lunge','ares-ext']},
-  'Posterior': {comp:['bb-dl','bb-rdl','bb-trap'],                        acc:['ares-curl','db-rdl','bb-gm']},
-  'Shoulders': {comp:['bb-ohp','ares-sp','halo-sp'],                      acc:['db-ohp','db-lat','halo-lat','cb-lat','db-front','cb-fp']},
-  'Biceps':    {comp:['bb-curl'],                                          acc:['db-curl','db-ham','halo-bc','cb-curl']},
-  'Triceps':   {comp:['bb-skull','bw-dip'],                               acc:['db-tex','halo-te','cb-pd']},
+  'Chest':     {comp:['bb-bench','bb-inc','bw-dip','m-chestpress','m-inclinepress'],  acc:['db-flat','db-inc','cb-crossover','cb-fly','db-fly']},
+  'Back':      {comp:['bb-row','bw-pullup','m-row','cb-seatedrow','bb-trap','bb-dl'], acc:['cb-pd2','db-row','cb-row','m-pullover','cb-po','cb-fp']},
+  'Legs':      {comp:['bb-sq','m-hack','m-legpress','bb-fsq'],            acc:['db-gob','db-lunge','m-legext']},
+  'Posterior': {comp:['bb-dl','bb-rdl','bb-trap'],                        acc:['m-legcurl','db-rdl','bb-gm']},
+  'Shoulders': {comp:['bb-ohp','m-shoulderpress','cb-shoulderpress'],                      acc:['db-ohp','db-lat','m-latraise','cb-lat','db-front','cb-fp']},
+  'Biceps':    {comp:['bb-curl'],                                          acc:['db-curl','db-ham','m-bicepcurl','cb-curl']},
+  'Triceps':   {comp:['bb-skull','bw-dip'],                               acc:['db-tex','cb-tricepext','cb-pd']},
   'Core':      {comp:['cb-pal'],                                           acc:['co-plank','co-ab','co-db']},
 };
 
@@ -991,7 +957,7 @@ const FAMOUS_PROGRAMS = [
       {label:'Press Day', mode:'strength', exIds:['bb-ohp','bw-dip','bw-pullup']},
       {label:'Deadlift Day', mode:'strength', exIds:['bb-dl','bb-gm','bw-hlr']},
       {label:'Bench Day', mode:'strength', exIds:['bb-bench','db-inc','db-row']},
-      {label:'Squat Day', mode:'strength', exIds:['bb-sq','ares-lp','ares-curl']}
+      {label:'Squat Day', mode:'strength', exIds:['bb-sq','m-legpress','m-legcurl']}
     ]
   },
   {
@@ -1077,7 +1043,7 @@ function loadFamousProgram(id){
       sec: []
     };
   });
-  saveActiveProgram(program);
+  beginProgram(program);
   LS.set('lift_prog_name', fp.name);
   S.activeDayIdx = 0;
   S.swapDayIdx = null;
@@ -1567,6 +1533,28 @@ function saveHistory(h){
 }
 function getWeights(){return LS.get('lift_wts')||{}}
 function saveWeight(id,w){const wts=getWeights();wts[id]=w;LS.set('lift_wts',wts)}
+// ---- Mode-scoped weight memory: the buckets ARE the existing MODES ----
+// Stores one remembered working weight per exercise PER MODE, so switching
+// modes (strength/hypertrophy/endurance) or programs never overwrites the
+// other intensity's weight. Lossless: until a mode has its own value, the
+// resolver falls back to the legacy flat lift_wts store, then to e1RM.
+function getWeightsByMode(){return LS.get('lift_wts_mode')||{}}
+function saveWeightMode(mode,id,w){if(!mode)return;const m=getWeightsByMode();(m[mode]||(m[mode]={}))[id]=w;LS.set('lift_wts_mode',m)}
+// Resolution chain: mode weight -> legacy flat weight -> e1RM-derived -> 0
+function resolveWeight(mode,id){
+  const byMode=getWeightsByMode()[mode];
+  if(byMode&&byMode[id]!=null)return byMode[id];            // 1. remembered for THIS mode
+  const flat=getWeights()[id];
+  if(flat!=null)return flat;                                // 2. legacy single-slot fallback
+  const e1=(getPRs()[id]||{}).e1rm;                         // 3. derive from best e1RM
+  if(e1&&MODES[mode]){
+    const rng=MODES[mode].reps,tgt=Math.round((rng[0]+rng[1])/2);
+    const f=(getPrefs().oneRMFormula)||'epley';
+    const w=f==='brzycki'?e1*(37-tgt)/36:e1/(1+tgt/30);     // inverse of calcE1RM
+    return Math.round(w/5)*5;                               // 5lb rounding (matches +5 progression)
+  }
+  return 0;                                                 // 4. nothing yet -> blank
+}
 function getPrefs(){return LS.get('lift_pref')||{}}
 function savePrefs(p){LS.set('lift_pref',{...getPrefs(),...p})}
 
@@ -1642,11 +1630,11 @@ function staleAction(action){
 
 // Active program: array of {id, label, exIds, mode}
 function getActiveProgram(){return LS.get('lift_prog')||null}
-function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
+function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.0';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
+const APP_VERSION='2.2';  // bump on each deploy; shown in Settings → About
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo','lift_prog_name'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1717,31 +1705,44 @@ function exportBackup(){
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
-function importBackup(){
-  const inp=document.createElement('input');
-  inp.type='file';inp.accept='.json,application/json';
-  inp.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
+function importBackup(evt){
+  // Two entry points share this handler:
+  //  - hidden file <input onchange="importBackup(event)"> passes the change event,
+  //    so we read the file the user already chose (event.target.files[0]).
+  //  - plain button onclick="importBackup()" passes nothing, so we open our own picker.
+  const readFile=file=>{
+    if(!file)return;
     const reader=new FileReader();
     reader.onload=ev=>{
       try{
         const data=JSON.parse(ev.target.result);
         if(!data.v){alert('Unrecognized backup file.');return;}
-        // Safety snapshot — store the current state in lift_import_snapshot
-        // so a botched import can be rolled back within 10 seconds.
+        // Safety snapshot so a botched import can be rolled back within 10 seconds.
         const snapshot={};
         BACKUP_KEYS.forEach(k=>{const v=LS.get(k);if(v!==null)snapshot[k]=v;});
         snapshot._stamp=Date.now();
         LS.set('lift_import_snapshot',snapshot);
         // Apply import
         BACKUP_KEYS.forEach(k=>{if(data[k]!==undefined)LS.set(k,data[k]);});
-        // Show undo toast for 10 seconds before reload
+        // Imported data may use legacy exercise ids -- force the (idempotent)
+        // migration to re-run on reload so old ids never sit unmigrated.
+        LS.set('lift_id_migration_v', 0);
         showImportUndoToast();
         setTimeout(()=>location.reload(),10500);
       }catch{alert('Could not read backup file.');}
     };
     reader.readAsText(file);
   };
+  // From the hidden file input: consume the already-selected file.
+  if(evt&&evt.target&&evt.target.files){
+    readFile(evt.target.files[0]);
+    evt.target.value='';   // reset so the same file can be re-imported later
+    return;
+  }
+  // From a button: create a transient picker.
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=e=>readFile(e.target.files[0]);
   document.body.appendChild(inp);inp.click();inp.remove();
 }
 
@@ -1866,6 +1867,7 @@ function checkAutoProgression(exId, sets, mode){
   const incr=getPrefs().incrLbs||5;
   const newW=+(finalSet.w+incr).toFixed(1);
   saveWeight(exId,newW);
+  saveWeightMode(mode,exId,newW);
   const sugg=getWeightSuggestions();
   delete sugg[exId];
   LS.set('lift_sugg',sugg);
@@ -2379,7 +2381,7 @@ function cancelImport(){
 function confirmImport(){
   const pending=window._pendingImport;
   if(!pending){cancelImport();return;}
-  saveActiveProgram(pending.program);
+  beginProgram(pending.program);
   LS.set('lift_prog_name',pending.name);
   delete window._pendingImport;
   const m=document.getElementById('import-modal');if(m)m.remove();
@@ -2494,7 +2496,7 @@ function saveProgramPreset(name){
   const prog=getActiveProgram();
   if(!prog||!prog.length)return null;
   const list=getSavedPrograms();
-  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now()};
+  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now(),mid:getActiveMid()};
   list.unshift(entry);
   LS.set('lift_progs',list.slice(0,20));  // cap at 20 saved presets
   return entry;
@@ -2502,7 +2504,7 @@ function saveProgramPreset(name){
 function loadProgramPreset(idx){
   const list=getSavedPrograms();
   if(!list[idx])return false;
-  saveActiveProgram(JSON.parse(JSON.stringify(list[idx].prog)));
+  beginProgram(JSON.parse(JSON.stringify(list[idx].prog)),list[idx].mid);
   S.activeDayIdx=0;S.swapDayIdx=null;
   smartSelectDay();
   return true;
@@ -2548,8 +2550,43 @@ function checkPR(exId,w,reps){
 // Activated when a program is saved as active. Used to compute the current
 // training week and surface a deload prompt at week 5 (Helms 2015; Israetel
 // MV→MEV→MAV→MRV mesocycle model).
-function getMesoMeta(){return LS.get('lift_meso')||{};}
-function setMesoActivated(){LS.set('lift_meso',{activated:Date.now(),deloadDismissedWeek:0});}
+// Mesocycle is keyed per-program by a stable id. A program is an ARRAY, and
+// JSON serialization drops named props off arrays, so the id can't ride on the
+// program object — it lives in its own key (lift_prog_mid = the active
+// program's id) and is remembered on each saved preset so loading one resumes
+// its cycle. Switching programs, or editing modes / reordering days within one,
+// no longer resets the week count.
+function _mesoStore(){return LS.get('lift_meso')||{};}
+function getActiveMid(){
+  let mid=LS.get('lift_prog_mid');
+  if(!mid){
+    if(!getActiveProgram())return null;            // no program → no cycle
+    mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    LS.set('lift_prog_mid',mid);
+    // One-time migration: fold a legacy global mesocycle onto this id so an
+    // existing user keeps their current week instead of resetting to 1.
+    const all=_mesoStore();
+    if(all.activated!==undefined){
+      all[mid]={activated:all.activated,deloadDismissedWeek:all.deloadDismissedWeek||0};
+      delete all.activated;delete all.deloadDismissedWeek;
+      LS.set('lift_meso',all);
+    }
+  }
+  return mid;
+}
+function getMesoMeta(){const mid=getActiveMid();if(!mid)return{};return _mesoStore()[mid]||{};}
+function _setMesoMeta(meta){const mid=getActiveMid();if(!mid)return;const all=_mesoStore();all[mid]=meta;LS.set('lift_meso',all);}
+function setMesoActivated(){_setMesoMeta({activated:Date.now(),deloadDismissedWeek:0});}
+// Activate a program. Pass `mid` to resume a known cycle (a saved preset stores
+// its id); omit it to start a fresh id + cycle. In-place edits use
+// saveActiveProgram directly and never reach here, so they don't disturb it.
+function beginProgram(prog,mid){
+  saveActiveProgram(prog);
+  if(!mid)mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  LS.set('lift_prog_mid',mid);
+  const all=_mesoStore();
+  if(!all[mid]){all[mid]={activated:Date.now(),deloadDismissedWeek:0};LS.set('lift_meso',all);}
+}
 function getMesoWeek(){
   const m=getMesoMeta();
   if(!m.activated)return 0;
@@ -2563,7 +2600,7 @@ function isDeloadDue(){
   return week>=5 && week%5===0 && (m.deloadDismissedWeek||0) < week;
 }
 function dismissDeloadPrompt(){
-  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();LS.set('lift_meso',m);render();
+  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();_setMesoMeta(m);render();
 }
 function resetMesocycle(){setMesoActivated();render();}
 
@@ -2742,7 +2779,7 @@ function showDeloadPrompt(week){
 
 function dismissDeload(week){
   const m=getMesoMeta();
-  LS.set('lift_meso',{...m,deloadDismissedWeek:week});
+  _setMesoMeta({...m,deloadDismissedWeek:week});
   const el=document.getElementById('deload-modal');if(el)el.remove();
 }
 
@@ -2865,7 +2902,7 @@ function startWorkout(dayIdx){
     day:day.id,dayLabel:day.label,mode,
     startTime:Date.now(),
     exIds:[...exIds],
-    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:wts[id]||0,reps:m.reps[1],rpe:null,done:false}))),
+    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:resolveWeight(mode,id),reps:m.reps[1],rpe:null,done:false}))),
     ei:0,si:0,
     progressions:[]   // collects auto-progression events during this workout
   };
@@ -2888,6 +2925,7 @@ function logSet(){
   cs.done=true;
   const exId=S.workout.exIds[S.workout.ei];
   saveWeight(exId,cs.w);
+  saveWeightMode(S.workout.mode,exId,cs.w);
   // PR check — fires if this set's e1RM beats the all-time best for the exercise
   const pr=checkPR(exId,cs.w,cs.reps);
   if(pr){
@@ -2978,7 +3016,7 @@ function _doEndExercise(){
   const done=w.sets[w.ei].filter(s=>s.done);
   // Use the max weight logged across all sets — not last set (which may be a back-off)
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0)saveWeight(exId,maxW);
+  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
   // Priority 2: record this attempt for stagnation detection
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
@@ -2994,7 +3032,7 @@ function _doEndWorkout(){
   const exId=w.exIds[w.ei];
   const done=w.sets[w.ei].filter(s=>s.done);
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0)saveWeight(exId,maxW);
+  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
   // Symmetric with _doEndExercise: track stagnation for the final exercise too
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
@@ -3755,6 +3793,28 @@ function rBStep1(){
     {k:'endurance',  label:'Endurance',   c:'#ff4444', desc:'Muscular endurance and conditioning. High rep, lower load. 12–20 reps @ 50–65%.'},
   ];
   return`
+<div class="sec-label">Start from a proven program</div>
+<div style="font-size:12px;color:var(--txt3);margin-bottom:10px;line-height:1.5">
+  Load a widely-cited strength program with its full progression scheme, or build your own below.
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">
+  ${FAMOUS_PROGRAMS.map(fp=>`
+    <button onclick="showLoadFamousProgramModal('${fp.id}')"
+      style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;
+      padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;
+      font-family:inherit;text-align:left;width:100%">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">${esc(fp.name)}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px">${fp.daysCount} days · ${esc(fp.author)}</div>
+      </div>
+      <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
+    </button>`).join('')}
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin:16px 0 14px">
+  <div style="flex:1;height:1px;background:var(--border)"></div>
+  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);text-transform:uppercase">or build your own</div>
+  <div style="flex:1;height:1px;background:var(--border)"></div>
+</div>
 <div class="sec-label">Training Goal</div>
 ${goals.map(g=>`
   <div class="split-card ${S.bGoal===g.k?'sel':''}" onclick="S.bGoal='${g.k}';render()">
@@ -4060,11 +4120,7 @@ function rCustomExercises(){
     </div>`:    `<div style="font-size:12px;color:var(--txt3);margin-bottom:10px;
       padding:10px 12px;background:var(--bg2);border-radius:8px">
       No exercises yet — tap + to add
-    </div>
-  ${(()=>{const n=getLatestNote(exId);return n?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
-    font-size:11px;color:var(--txt3);font-style:italic;line-height:1.4">
-    📝 ${esc(n.note)} <span style="color:#555">· ${new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`:'';})()}
-  </div>`}
+    </div>`}
 
     <!-- MG filter tabs -->
     <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px">
@@ -4137,7 +4193,7 @@ function activateCustomSplit(){
     mode:day.mode||'hypertrophy',
     pri:[],sec:[]
   }));
-  saveActiveProgram(prog);
+  beginProgram(prog);
   S.activeDayIdx=0;
   smartSelectDay();
   S.screen='home';
@@ -4239,7 +4295,7 @@ ${S.bPreview.map((day,di)=>{
 </div>`;
 }
 function activateProgram(){
-  saveActiveProgram(S.bPreview);
+  beginProgram(S.bPreview);
   S.mode=S.bGoal;
   savePrefs({mode:S.bGoal});
   S.bStep=1;S.bPreview=null;
@@ -5767,65 +5823,65 @@ const EX_INFO = {
     equip:'Barbell · Rack · Clean grip or cross-arm',
     desc:'Front squat places bar on the front deltoids, requiring a very upright torso. Shifts stress to the quads and taxes core/upper back stability heavily. Higher technical demand than back squat.',
     cues:['Clean grip: elbows high, parallel to floor throughout','Elbows drop = bar rolls forward = collapse — protect elbows first','More upright torso than back squat by necessity','Knees forward over toes is acceptable; ankle mobility critical']},
-  'ares-hack': {pri:['Legs'],sec:['Posterior'],
-    equip:'Ares 2.0 Hack Squat Machine',
-    desc:'Machine hack squat with back pad support. Feet positioned forward of hips isolates quads with reduced spinal loading. The Ares 2.0 provides lever-arm resistance for smooth loading curve.',
+  'm-hack': {pri:['Legs'],sec:['Posterior'],
+    equip:'Hack Squat Machine',
+    desc:'Machine hack squat with back pad support. Feet positioned forward of hips isolates quads with reduced spinal loading. The machine provides a smooth, guided loading curve.',
     cues:['Foot position higher = more glute/ham; lower = more quad','Full depth: below parallel unless joint restrictions','Control descent; pause briefly at bottom','Drive through full foot, not just toes']},
-  'ares-lp': {pri:['Legs'],sec:['Posterior'],
-    equip:'Ares 2.0 Leg Press',
-    desc:'Seated leg press on Ares 2.0. Removes spinal compressive load entirely. Excellent for isolating quads and loading the legs with high volume when axial loading is not appropriate.',
+  'm-legpress': {pri:['Legs'],sec:['Posterior'],
+    equip:'Leg Press Machine',
+    desc:'Seated leg press machine. Removes spinal compressive load entirely. Excellent for isolating quads and loading the legs with high volume when axial loading is not appropriate.',
     cues:['Feet shoulder-width, mid-platform','Do not lock knees at top — maintain slight bend','Full ROM: 90° knee angle at bottom','Adjust foot height to shift quad vs glute emphasis']},
-  'ares-curl': {pri:['Posterior'],sec:[],
-    equip:'Ares 2.0 Leg Curl Attachment',
-    desc:'Lying or seated leg curl targeting the hamstrings through knee flexion. Ares 2.0 lever arm provides resistance through full ROM.',
+  'm-legcurl': {pri:['Posterior'],sec:[],
+    equip:'Leg Curl Machine',
+    desc:'Lying or seated leg curl targeting the hamstrings through knee flexion. The machine provides resistance through full ROM.',
     cues:['Full extension at bottom — do not shorten ROM','Curl heel to glute; brief squeeze at peak contraction','Avoid hip flexor engagement; keep hips flat','Slow eccentric for hypertrophy — 3s lower']},
-  'ares-ext': {pri:['Legs'],sec:[],
-    equip:'Ares 2.0 Leg Extension Attachment',
-    desc:'Seated knee extension isolating the quadriceps. Useful accessory after compound leg work. Ares lever arm provides consistent resistance.',
+  'm-legext': {pri:['Legs'],sec:[],
+    equip:'Leg Extension Machine',
+    desc:'Seated knee extension isolating the quadriceps. Useful accessory after compound leg work. The machine provides consistent resistance.',
     cues:['Full extension at top — squeeze quad hard','Controlled descent — 2s eccentric','Not appropriate as a warm-up for ACL-sensitive individuals under load','Toes slightly externally rotated to bias VMO']},
-  'ares-cp': {pri:['Chest'],sec:['Shoulders','Triceps'],
-    equip:'Ares 2.0 Chest Press',
-    desc:'Bilateral machine chest press on Ares 2.0. Lever arm provides a strength-curve-appropriate resistance profile. Removes stabilisation demand versus free weight pressing.',
+  'm-chestpress': {pri:['Chest'],sec:['Shoulders','Triceps'],
+    equip:'Chest Press Machine',
+    desc:'Bilateral machine chest press. Provides a strength-curve-appropriate resistance profile. Removes stabilisation demand versus free weight pressing.',
     cues:['Retract scapulae into pad before pressing','Full ROM: elbows slightly behind torso at bottom','Drive handles together slightly to increase pec recruitment','Avoid shrugging shoulders at top']},
-  'ares-sp': {pri:['Shoulders'],sec:['Triceps'],
-    equip:'Ares 2.0 Shoulder Press',
-    desc:'Seated overhead machine press on Ares 2.0. Fixed path reduces stabilization demand, allowing focus on deltoid overload.',
+  'm-shoulderpress': {pri:['Shoulders'],sec:['Triceps'],
+    equip:'Shoulder Press Machine',
+    desc:'Seated overhead machine press. Fixed path reduces stabilization demand, allowing focus on deltoid overload.',
     cues:['Seat height: handles at ear level at start','Full extension overhead without shrugging','Control descent below parallel to ear level','Keep core braced against back pad']},
-  'ares-row': {pri:['Back'],sec:['Biceps'],
-    equip:'Ares 2.0 Row Attachment',
-    desc:'Seated horizontal row on Ares 2.0. Targets lats, rhomboids, and mid-back. Lever arm provides consistent resistance throughout the pull.',
+  'm-row': {pri:['Back'],sec:['Biceps'],
+    equip:'Row Machine',
+    desc:'Seated horizontal machine row. Targets lats, rhomboids, and mid-back. Provides consistent resistance throughout the pull.',
     cues:['Chest against pad; pull handles to lower ribs','Lead with elbows; retract scapulae at full contraction','Hold 1s at end-ROM; resist the return slowly','Avoid rocking torso to generate momentum']},
-  'halo-fly': {pri:['Chest'],sec:[],
-    equip:'PRX Halo Lever Arms · Bench or standing',
-    desc:'Cable-style chest fly on PRX Halo lever arms. Maintains tension through full ROM unlike dumbbells. Excellent pec isolation movement emphasising the stretch position.',
+  'cb-crossover': {pri:['Chest'],sec:[],
+    equip:'Cable / Functional Trainer · Bench or standing',
+    desc:'Cable crossover fly. Maintains tension through full ROM unlike dumbbells. Excellent pec isolation movement emphasising the stretch position.',
     cues:['Slight elbow bend maintained — do not straighten or over-bend','Arms move in arc from sides to centerline — "hugging a barrel"','Feel pec stretch at widest point; do not let shoulders roll forward','Squeeze pecs together at top; brief pause']},
-  'halo-ip': {pri:['Chest'],sec:['Shoulders','Triceps'],
-    equip:'PRX Halo Lever Arms · Incline bench',
-    desc:'Incline press on PRX Halo lever arms. Lever arm provides resistance throughout the full pressing arc, targeting upper chest and anterior deltoids.',
+  'm-inclinepress': {pri:['Chest'],sec:['Shoulders','Triceps'],
+    equip:'Incline Press Machine',
+    desc:'Machine incline press. Provides resistance throughout the full pressing arc, targeting upper chest and anterior deltoids.',
     cues:['Set incline 30–45°','Drive handles up and slightly inward','Full lockout at top; full ROM at bottom','Scapular retraction before each rep']},
-  'halo-row': {pri:['Back'],sec:['Biceps'],
-    equip:'PRX Halo Lever Arms · Standing or seated',
-    desc:'Horizontal row on PRX Halo lever arms. Fixed lever path provides consistent resistance. Targets lats and mid-back.',
+  'cb-seatedrow': {pri:['Back'],sec:['Biceps'],
+    equip:'Cable Row Station · Standing or seated',
+    desc:'Horizontal cable row. Provides consistent resistance. Targets lats and mid-back.',
     cues:['Set handles at hip height for lat bias; chest height for mid-back bias','Pull elbows back past torso','Scapular retraction at peak; pause 1s','Control return to full arm extension — do not release tension']},
-  'halo-sp': {pri:['Shoulders'],sec:['Triceps'],
-    equip:'PRX Halo Lever Arms',
-    desc:'Overhead shoulder press on PRX Halo lever arms. Lever arm provides smooth pressing resistance with continuous tension.',
+  'cb-shoulderpress': {pri:['Shoulders'],sec:['Triceps'],
+    equip:'Cable / Functional Trainer',
+    desc:'Overhead cable shoulder press. Provides smooth pressing resistance with continuous tension.',
     cues:['Start handles at shoulder height; press to full extension','Keep core braced; avoid excessive lumbar arch','Controlled descent back to start position']},
-  'halo-lat': {pri:['Shoulders'],sec:[],
-    equip:'PRX Halo Lever Arms',
-    desc:'Lateral raise on PRX Halo lever arms. Targets medial deltoid through shoulder abduction. Lever arms maintain tension at bottom of movement, unlike dumbbells.',
+  'm-latraise': {pri:['Shoulders'],sec:[],
+    equip:'Lateral Raise Machine',
+    desc:'Machine lateral raise. Targets medial deltoid through shoulder abduction. Maintains tension at the bottom of the movement, unlike dumbbells.',
     cues:['Arms rise to shoulder height — no higher (traps take over above 90°)','Lead with elbows, not wrists','Slight forward lean (5–10°) shifts stress to mid-delt','2s up, 3s down — slow eccentric for growth']},
-  'halo-te': {pri:['Triceps'],sec:[],
-    equip:'PRX Halo Lever Arms',
-    desc:'Overhead or pushdown tricep extension on PRX Halo lever arms. Stretches the long head of the triceps when done overhead — highest growth stimulus for triceps.',
+  'cb-tricepext': {pri:['Triceps'],sec:[],
+    equip:'Cable / Functional Trainer',
+    desc:'Overhead or pushdown cable triceps extension. Stretches the long head of the triceps when done overhead — highest growth stimulus for triceps.',
     cues:['Keep elbows fixed; only the forearm moves','Full extension at bottom; do not lock out aggressively','Overhead position: elbows forward, not flared wide','Slow eccentric into the stretched position']},
-  'halo-bc': {pri:['Biceps'],sec:[],
-    equip:'PRX Halo Lever Arms',
-    desc:'Bicep curl on PRX Halo lever arms. Maintains constant tension through full ROM including the contracted position.',
+  'm-bicepcurl': {pri:['Biceps'],sec:[],
+    equip:'Bicep Curl Machine',
+    desc:'Machine or cable bicep curl. Maintains constant tension through full ROM including the contracted position.',
     cues:['Elbows fixed at sides — no swinging','Full supination at top for complete bicep contraction','Lower fully to stretch — do not cut ROM short','Squeeze at the top for 1s']},
-  'halo-po': {pri:['Back'],sec:['Chest'],
-    equip:'PRX Halo Lever Arms · Flat or incline bench',
-    desc:'Pullover on PRX Halo lever arms. Trains the lat in a stretched overhead position. Also engages serratus anterior and lower pec.',
+  'm-pullover': {pri:['Back'],sec:['Chest'],
+    equip:'Pullover Machine / Cable · Flat or incline bench',
+    desc:'Machine or cable pullover. Trains the lat in a stretched overhead position. Also engages serratus anterior and lower pec.',
     cues:['Keep slight elbow bend throughout','Feel lat stretch at full overhead extension','Arc movement — do not press','Rib cage expansion at full stretch']},
   'db-flat': {pri:['Chest'],sec:['Shoulders','Triceps'],
     equip:'Dumbbells · Flat bench',
@@ -6104,83 +6160,6 @@ const EX_INFO = {
     equip:'Heavy dumbbells, kettlebells, trap bar, or specialized farmer\'s handles',
     desc:'Walking carry with heavy implements at the sides. Winwood et al. (2014) on strongman training found significant correlation with 1RM deadlift independent of other strength markers. McGill has written extensively about loaded carry\'s role in spinal stability.',
     cues:['Stand tall — chest up, shoulders pulled back and down','Implements at sides, do not let them swing','Short, deliberate steps — quality of gait matters more than speed','Brace the core throughout — anti-lateral flexion is the key adaptation','Program by distance and load (e.g., 4 × 30 yards @ 50% BW per hand)']},
-
-  // ───── Machine & Specialty Additions — Descriptions & Cues ─────
-
-  // Chest
-  'db-barrel':{pri:['Chest'],sec:['Triceps','Shoulders'],
-    equip:'Dumbbells · Flat or slight incline bench',
-    desc:'Neutral-grip dumbbell press performed with the dumbbells held together (or close) throughout, palms facing each other. The constant inward pressure ("squeeze press") increases inner-chest and triceps tension across the whole press. Easier on the shoulders than a wide barbell press.',
-    cues:['Hold dumbbells with a neutral grip, palms facing each other','Keep the dumbbells pressed together throughout the movement','Press up while actively squeezing them inward','Lower under control to mid-chest','Slight incline biases upper chest if desired']},
-  'm-incpress':{pri:['Chest'],sec:['Triceps','Shoulders'],
-    equip:'Incline chest press machine',
-    desc:'Machine-guided incline pressing. The fixed path lets you push closer to failure safely without a spotter, making it useful for high-intensity sets at the end of a chest session.',
-    cues:['Set seat height so handles align with upper chest','Press to near lockout without slamming the stack','Control the eccentric — resist on the way back','Keep shoulder blades retracted against the pad','Good for safely training to failure without a spotter']},
-
-  // Triceps
-  'db-coffin':{pri:['Triceps'],sec:[],
-    equip:'Dumbbells · Flat bench',
-    desc:'Lying dumbbell extension where the dumbbells are lowered toward the forehead (like a skullcrusher, but with dumbbells), framing the head — hence "coffin." Provides a strong stretch on the triceps with independent-arm loading that corrects side-to-side imbalances.',
-    cues:['Lie flat, dumbbells held overhead with neutral grip','Lower the dumbbells toward your forehead/ears, elbows pointing up','Keep upper arms vertical and stationary — only the forearms move','Stop just before the dumbbells reach your head','Extend back up without locking out aggressively']},
-  'm-dip':{pri:['Triceps'],sec:['Chest','Shoulders'],
-    equip:'Assisted/weighted dip machine',
-    desc:'Machine-assisted or plate-loaded dip. The guided path allows precise loading without the balance demand of bodyweight dips — useful for progressive overload on the triceps and lower chest.',
-    cues:['Set torso angle: upright = triceps bias, leaning forward = chest bias','Lower until upper arms are roughly parallel to the floor','Drive up through the heels of the hands','Avoid shrugging — keep shoulders down','Control depth to protect the shoulder joint']},
-
-  // Legs
-  'm-seatedleg':{pri:['Posterior'],sec:[],
-    equip:'Seated leg curl machine',
-    desc:'Seated hamstring curl. Research (e.g., Maeo et al. 2021) shows the seated position — with the hip flexed — trains the hamstrings at longer muscle lengths and produces greater hypertrophy than the lying curl. A strong complement to lying leg curls.',
-    cues:['Adjust back pad so knees align with the pivot point','Secure the thigh pad snugly above the knees','Curl down fully, squeezing the hamstrings','Control the eccentric — do not let the stack slam','The flexed-hip position trains hamstrings at long lengths']},
-  'm-abductor':{pri:['Legs'],sec:['Posterior'],
-    equip:'Hip abduction machine',
-    desc:'Seated hip abduction — pushing the knees outward against resistance. Targets the gluteus medius and minimus, important for hip stability and a common weak point that limits squat and single-leg performance.',
-    cues:['Sit upright with back against the pad','Pads against the outer thighs, not the knees','Push knees outward through a full range','Pause at peak abduction and squeeze','Control the return — resist the stack inward']},
-  'm-smithsq':{pri:['Legs'],sec:['Posterior','Core'],
-    equip:'Smith machine',
-    desc:'Squat performed on the fixed vertical bar path of a Smith machine. The guided path removes balance demand, letting you focus on the legs and push closer to failure. Foot placement can be shifted forward to bias quads or back to bias glutes.',
-    cues:['Position feet slightly forward of the bar for knee safety','Unrack by rotating the bar; brace before descending','Descend to at least parallel under control','Drive up through midfoot','Re-rack by rotating the bar at the top']},
-  'm-pendulum':{pri:['Legs'],sec:['Posterior'],
-    equip:'Pendulum squat machine',
-    desc:'Squat on an arc-path machine that keeps the torso supported and loads the quads through a deep, knee-friendly range. Increasingly common in well-equipped gyms; excellent for quad hypertrophy with minimal spinal load.',
-    cues:['Back and shoulders firmly against the pads','Feet positioned for a comfortable deep squat','Descend slowly through a full range of motion','Drive up without locking out hard at the top','Excellent for high-rep quad-focused work']},
-
-  // Back
-  'm-latpull-mach':{pri:['Back'],sec:['Biceps'],
-    equip:'Plate-loaded or selectorized lat pulldown machine',
-    desc:'Machine lat pulldown with a fixed path and chest pad on some models. Functionally similar to the cable pulldown but with a more stable line of pull, allowing heavier loading and easier progressive overload tracking.',
-    cues:['Secure thighs under the pad','Grip slightly wider than shoulders','Pull to the upper chest, driving elbows down','Squeeze the lats at the bottom','Control the stretch back to full overhead extension']},
-  'm-assistpull':{pri:['Back'],sec:['Biceps'],
-    equip:'Assisted pull-up machine',
-    desc:'Pull-up with counterweight assistance from a machine, letting you train the full pull-up pattern before you can do bodyweight reps. The assistance is the opposite of added weight — more counterweight makes it easier.',
-    cues:['Kneel or stand on the assist platform','Set assistance weight: MORE weight = MORE help','Pull through a full range to chin over the bar','Lower under control to a full hang','Reduce assistance over time to progress toward bodyweight']},
-  'm-highrow':{pri:['Back'],sec:['Biceps'],
-    equip:'Plate-loaded high row machine (e.g., Hammer Strength)',
-    desc:'Chest-supported machine row pulling on a downward-diagonal path. The high angle emphasizes the upper back and lats. Independent arms on most models correct side-to-side imbalances.',
-    cues:['Chest firmly against the pad','Grip the handles and pull elbows down and back','Squeeze shoulder blades at the end of the pull','Control the stretch forward without rounding','Each arm works independently — match effort on both sides']},
-
-  // Shoulders
-  'm-latraise':{pri:['Shoulders'],sec:[],
-    equip:'Lateral raise machine',
-    desc:'Machine lateral raise with pads against the outer arms. The fixed path keeps constant tension on the lateral deltoid and removes momentum, making it stricter than dumbbell laterals.',
-    cues:['Adjust seat so shoulders align with the pivot','Pads against the outer upper arms','Raise to about shoulder height — no higher','Lead with the elbows, not the hands','Lower slowly; the machine keeps tension constant']},
-  'm-revpec':{pri:['Shoulders'],sec:['Back'],
-    equip:'Pec deck machine (reverse setting)',
-    desc:'Rear delt fly performed on a pec deck facing into the machine. Isolates the rear deltoids with a fixed path and constant tension — one of the most consistent rear-delt builders available.',
-    cues:['Face the pad, chest against it','Grip handles with arms roughly parallel to floor','Pull the handles back in a wide arc','Squeeze the rear delts and mid-back at the end','Control the return — resist the stack forward']},
-
-  // Biceps
-  'm-curlmach':{pri:['Biceps'],sec:[],
-    equip:'Machine preacher / seated curl machine',
-    desc:'Machine bicep curl with the upper arms fixed against a pad. The guided path removes body english and provides smooth resistance, ideal for strict high-rep work and training close to failure safely.',
-    cues:['Upper arms flat against the pad, armpits at the top edge','Adjust seat so elbows align with the pivot','Curl through a full range without lifting off the pad','Squeeze at the top','Control the eccentric to a near-full stretch']},
-
-  // Smith bench
-  'm-smithbench':{pri:['Chest'],sec:['Triceps','Shoulders'],
-    equip:'Smith machine + flat bench',
-    desc:'Bench press on the fixed bar path of a Smith machine. The guided path removes the need for a spotter and lets you push close to failure safely. Useful for chest-focused volume without stabilizer fatigue.',
-    cues:['Position the bench so the bar lowers to mid-chest','Retract shoulder blades and plant feet','Unrack by rotating the bar hooks','Lower under control, press to lockout','Re-rack by rotating the bar at the top']},
-
 
   // ───── Variety Pack — Descriptions & Coaching Cues ─────
 
@@ -6485,7 +6464,91 @@ function showSplash(onDone){
   },1750); // 0.65s fade-in + 1.1s hold
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// EXERCISE ID MIGRATION (forward-compatible)
+// When an exercise's internal ID changes, add an old→new entry to ID_MIGRATIONS
+// and bump MIGRATION_VERSION. runExerciseIdMigrations() rewrites every stored
+// reference exactly once, keeping history/weights/PRs/programs intact. Idempotent.
+// ════════════════════════════════════════════════════════════════════════════
+const ID_MIGRATIONS = {
+  // v1 — brand-neutral, gym-portable machine/cable names
+  'ares-hack':'m-hack', 'ares-lp':'m-legpress', 'ares-curl':'m-legcurl',
+  'ares-ext':'m-legext', 'ares-cp':'m-chestpress', 'ares-sp':'m-shoulderpress',
+  'ares-row':'m-row',
+  'halo-fly':'cb-crossover', 'halo-ip':'m-inclinepress', 'halo-row':'cb-seatedrow',
+  'halo-sp':'cb-shoulderpress', 'halo-lat':'m-latraise', 'halo-te':'cb-tricepext',
+  'halo-bc':'m-bicepcurl', 'halo-po':'m-pullover',
+};
+const MIGRATION_VERSION = 1;
+
+const _mapId    = id => ID_MIGRATIONS[id] || id;
+const _mapIdArr = a  => Array.isArray(a) ? a.map(_mapId) : a;
+function _mapIdKeys(obj){
+  if(!obj || typeof obj !== 'object') return obj;
+  const out = {};
+  for(const k of Object.keys(obj)){
+    const nk = _mapId(k);
+    // 1:1 mapping; if an old and (impossible) pre-existing new key collide, keep old data
+    out[nk] = (k !== nk && nk in out) ? out[nk] : obj[k];
+  }
+  return out;
+}
+
+function runExerciseIdMigrations(){
+  if((LS.get('lift_id_migration_v') || 0) >= MIGRATION_VERSION) return; // once only
+
+  // Flat {id: value} stores
+  ['lift_wts','lift_prs','lift_sugg','lift_exertion','lift_stagnation',
+   'lift_ex_rest','lift_ex_tempo','lift_notes'].forEach(key=>{
+    const v = LS.get(key); if(v) LS.set(key, _mapIdKeys(v));
+  });
+
+  // Mode-scoped weights {mode:{id:w}}
+  const wm = LS.get('lift_wts_mode');
+  if(wm){ const o={}; for(const md of Object.keys(wm)) o[md]=_mapIdKeys(wm[md]); LS.set('lift_wts_mode',o); }
+
+  // History [{exIds, progressions:[{exId}]}]
+  const hist = LS.get('lift_hist');
+  if(Array.isArray(hist)){
+    hist.forEach(w=>{
+      if(Array.isArray(w.exIds)) w.exIds = _mapIdArr(w.exIds);
+      if(Array.isArray(w.progressions)) w.progressions.forEach(p=>{ if(p&&p.exId) p.exId=_mapId(p.exId); });
+    });
+    LS.set('lift_hist', hist);
+  }
+
+  // Active program [{exIds}]
+  const prog = LS.get('lift_prog');
+  if(Array.isArray(prog)){ prog.forEach(d=>{ if(Array.isArray(d.exIds)) d.exIds=_mapIdArr(d.exIds); }); LS.set('lift_prog',prog); }
+
+  // Saved presets [{prog:[{exIds}]}]
+  const presets = LS.get('lift_progs');
+  if(Array.isArray(presets)){
+    presets.forEach(p=>{ if(Array.isArray(p.prog)) p.prog.forEach(d=>{ if(Array.isArray(d.exIds)) d.exIds=_mapIdArr(d.exIds); }); });
+    LS.set('lift_progs', presets);
+  }
+
+  // Per-day custom overrides {dayId:[exIds]}
+  const cust = LS.get('lift_custom');
+  if(cust && typeof cust==='object'){ const o={}; for(const d of Object.keys(cust)) o[d]=_mapIdArr(cust[d]); LS.set('lift_custom',o); }
+
+  // In-progress workout {exIds, progressions}
+  const wip = LS.get('lift_wip');
+  if(wip && Array.isArray(wip.exIds)){
+    wip.exIds = _mapIdArr(wip.exIds);
+    if(Array.isArray(wip.progressions)) wip.progressions.forEach(p=>{ if(p&&p.exId) p.exId=_mapId(p.exId); });
+    LS.set('lift_wip', wip);
+  }
+
+  // Pref-stored Progress-chart selector id
+  const pref = LS.get('lift_pref');
+  if(pref && pref.progEx){ const n=_mapId(pref.progEx); if(n!==pref.progEx){ pref.progEx=n; LS.set('lift_pref',pref); } }
+
+  LS.set('lift_id_migration_v', MIGRATION_VERSION);
+}
+
 function init(){
+  runExerciseIdMigrations();   // remap any legacy ares-*/halo-* ids before reading stored data
   // Mirror splash image into background watermark — saves ~84KB of duplicate b64
   const splashImg=document.querySelector('#splash img');
   const wmImg=document.querySelector('#wm img');
