@@ -1533,6 +1533,28 @@ function saveHistory(h){
 }
 function getWeights(){return LS.get('lift_wts')||{}}
 function saveWeight(id,w){const wts=getWeights();wts[id]=w;LS.set('lift_wts',wts)}
+// ---- Mode-scoped weight memory: the buckets ARE the existing MODES ----
+// Stores one remembered working weight per exercise PER MODE, so switching
+// modes (strength/hypertrophy/endurance) or programs never overwrites the
+// other intensity's weight. Lossless: until a mode has its own value, the
+// resolver falls back to the legacy flat lift_wts store, then to e1RM.
+function getWeightsByMode(){return LS.get('lift_wts_mode')||{}}
+function saveWeightMode(mode,id,w){if(!mode)return;const m=getWeightsByMode();(m[mode]||(m[mode]={}))[id]=w;LS.set('lift_wts_mode',m)}
+// Resolution chain: mode weight -> legacy flat weight -> e1RM-derived -> 0
+function resolveWeight(mode,id){
+  const byMode=getWeightsByMode()[mode];
+  if(byMode&&byMode[id]!=null)return byMode[id];            // 1. remembered for THIS mode
+  const flat=getWeights()[id];
+  if(flat!=null)return flat;                                // 2. legacy single-slot fallback
+  const e1=(getPRs()[id]||{}).e1rm;                         // 3. derive from best e1RM
+  if(e1&&MODES[mode]){
+    const rng=MODES[mode].reps,tgt=Math.round((rng[0]+rng[1])/2);
+    const f=(getPrefs().oneRMFormula)||'epley';
+    const w=f==='brzycki'?e1*(37-tgt)/36:e1/(1+tgt/30);     // inverse of calcE1RM
+    return Math.round(w/5)*5;                               // 5lb rounding (matches +5 progression)
+  }
+  return 0;                                                 // 4. nothing yet -> blank
+}
 function getPrefs(){return LS.get('lift_pref')||{}}
 function savePrefs(p){LS.set('lift_pref',{...getPrefs(),...p})}
 
@@ -1611,8 +1633,8 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.0';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
+const APP_VERSION='2.1';  // bump on each deploy; shown in Settings → About
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1832,6 +1854,7 @@ function checkAutoProgression(exId, sets, mode){
   const incr=getPrefs().incrLbs||5;
   const newW=+(finalSet.w+incr).toFixed(1);
   saveWeight(exId,newW);
+  saveWeightMode(mode,exId,newW);
   const sugg=getWeightSuggestions();
   delete sugg[exId];
   LS.set('lift_sugg',sugg);
@@ -2831,7 +2854,7 @@ function startWorkout(dayIdx){
     day:day.id,dayLabel:day.label,mode,
     startTime:Date.now(),
     exIds:[...exIds],
-    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:wts[id]||0,reps:m.reps[1],rpe:null,done:false}))),
+    sets:exIds.map(id=>Array.from({length:m.sets},()=>({w:resolveWeight(mode,id),reps:m.reps[1],rpe:null,done:false}))),
     ei:0,si:0,
     progressions:[]   // collects auto-progression events during this workout
   };
@@ -2854,6 +2877,7 @@ function logSet(){
   cs.done=true;
   const exId=S.workout.exIds[S.workout.ei];
   saveWeight(exId,cs.w);
+  saveWeightMode(S.workout.mode,exId,cs.w);
   // PR check — fires if this set's e1RM beats the all-time best for the exercise
   const pr=checkPR(exId,cs.w,cs.reps);
   if(pr){
@@ -2944,7 +2968,7 @@ function _doEndExercise(){
   const done=w.sets[w.ei].filter(s=>s.done);
   // Use the max weight logged across all sets — not last set (which may be a back-off)
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0)saveWeight(exId,maxW);
+  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
   // Priority 2: record this attempt for stagnation detection
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
@@ -2960,7 +2984,7 @@ function _doEndWorkout(){
   const exId=w.exIds[w.ei];
   const done=w.sets[w.ei].filter(s=>s.done);
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0)saveWeight(exId,maxW);
+  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
   // Symmetric with _doEndExercise: track stagnation for the final exercise too
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
