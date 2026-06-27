@@ -1043,7 +1043,7 @@ function loadFamousProgram(id){
       sec: []
     };
   });
-  saveActiveProgram(program);
+  beginProgram(program);
   LS.set('lift_prog_name', fp.name);
   S.activeDayIdx = 0;
   S.swapDayIdx = null;
@@ -1630,11 +1630,11 @@ function staleAction(action){
 
 // Active program: array of {id, label, exIds, mode}
 function getActiveProgram(){return LS.get('lift_prog')||null}
-function saveActiveProgram(prog){LS.set('lift_prog',prog);setMesoActivated();}
+function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.1';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
+const APP_VERSION='2.2';  // bump on each deploy; shown in Settings → About
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -2368,7 +2368,7 @@ function cancelImport(){
 function confirmImport(){
   const pending=window._pendingImport;
   if(!pending){cancelImport();return;}
-  saveActiveProgram(pending.program);
+  beginProgram(pending.program);
   LS.set('lift_prog_name',pending.name);
   delete window._pendingImport;
   const m=document.getElementById('import-modal');if(m)m.remove();
@@ -2483,7 +2483,7 @@ function saveProgramPreset(name){
   const prog=getActiveProgram();
   if(!prog||!prog.length)return null;
   const list=getSavedPrograms();
-  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now()};
+  const entry={name:name||'Untitled',prog:JSON.parse(JSON.stringify(prog)),savedDate:Date.now(),mid:getActiveMid()};
   list.unshift(entry);
   LS.set('lift_progs',list.slice(0,20));  // cap at 20 saved presets
   return entry;
@@ -2491,7 +2491,7 @@ function saveProgramPreset(name){
 function loadProgramPreset(idx){
   const list=getSavedPrograms();
   if(!list[idx])return false;
-  saveActiveProgram(JSON.parse(JSON.stringify(list[idx].prog)));
+  beginProgram(JSON.parse(JSON.stringify(list[idx].prog)),list[idx].mid);
   S.activeDayIdx=0;S.swapDayIdx=null;
   smartSelectDay();
   return true;
@@ -2537,8 +2537,43 @@ function checkPR(exId,w,reps){
 // Activated when a program is saved as active. Used to compute the current
 // training week and surface a deload prompt at week 5 (Helms 2015; Israetel
 // MV→MEV→MAV→MRV mesocycle model).
-function getMesoMeta(){return LS.get('lift_meso')||{};}
-function setMesoActivated(){LS.set('lift_meso',{activated:Date.now(),deloadDismissedWeek:0});}
+// Mesocycle is keyed per-program by a stable id. A program is an ARRAY, and
+// JSON serialization drops named props off arrays, so the id can't ride on the
+// program object — it lives in its own key (lift_prog_mid = the active
+// program's id) and is remembered on each saved preset so loading one resumes
+// its cycle. Switching programs, or editing modes / reordering days within one,
+// no longer resets the week count.
+function _mesoStore(){return LS.get('lift_meso')||{};}
+function getActiveMid(){
+  let mid=LS.get('lift_prog_mid');
+  if(!mid){
+    if(!getActiveProgram())return null;            // no program → no cycle
+    mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    LS.set('lift_prog_mid',mid);
+    // One-time migration: fold a legacy global mesocycle onto this id so an
+    // existing user keeps their current week instead of resetting to 1.
+    const all=_mesoStore();
+    if(all.activated!==undefined){
+      all[mid]={activated:all.activated,deloadDismissedWeek:all.deloadDismissedWeek||0};
+      delete all.activated;delete all.deloadDismissedWeek;
+      LS.set('lift_meso',all);
+    }
+  }
+  return mid;
+}
+function getMesoMeta(){const mid=getActiveMid();if(!mid)return{};return _mesoStore()[mid]||{};}
+function _setMesoMeta(meta){const mid=getActiveMid();if(!mid)return;const all=_mesoStore();all[mid]=meta;LS.set('lift_meso',all);}
+function setMesoActivated(){_setMesoMeta({activated:Date.now(),deloadDismissedWeek:0});}
+// Activate a program. Pass `mid` to resume a known cycle (a saved preset stores
+// its id); omit it to start a fresh id + cycle. In-place edits use
+// saveActiveProgram directly and never reach here, so they don't disturb it.
+function beginProgram(prog,mid){
+  saveActiveProgram(prog);
+  if(!mid)mid='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  LS.set('lift_prog_mid',mid);
+  const all=_mesoStore();
+  if(!all[mid]){all[mid]={activated:Date.now(),deloadDismissedWeek:0};LS.set('lift_meso',all);}
+}
 function getMesoWeek(){
   const m=getMesoMeta();
   if(!m.activated)return 0;
@@ -2552,7 +2587,7 @@ function isDeloadDue(){
   return week>=5 && week%5===0 && (m.deloadDismissedWeek||0) < week;
 }
 function dismissDeloadPrompt(){
-  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();LS.set('lift_meso',m);render();
+  const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();_setMesoMeta(m);render();
 }
 function resetMesocycle(){setMesoActivated();render();}
 
@@ -2731,7 +2766,7 @@ function showDeloadPrompt(week){
 
 function dismissDeload(week){
   const m=getMesoMeta();
-  LS.set('lift_meso',{...m,deloadDismissedWeek:week});
+  _setMesoMeta({...m,deloadDismissedWeek:week});
   const el=document.getElementById('deload-modal');if(el)el.remove();
 }
 
@@ -4127,7 +4162,7 @@ function activateCustomSplit(){
     mode:day.mode||'hypertrophy',
     pri:[],sec:[]
   }));
-  saveActiveProgram(prog);
+  beginProgram(prog);
   S.activeDayIdx=0;
   smartSelectDay();
   S.screen='home';
@@ -4229,7 +4264,7 @@ ${S.bPreview.map((day,di)=>{
 </div>`;
 }
 function activateProgram(){
-  saveActiveProgram(S.bPreview);
+  beginProgram(S.bPreview);
   S.mode=S.bGoal;
   savePrefs({mode:S.bGoal});
   S.bStep=1;S.bPreview=null;
