@@ -1633,8 +1633,8 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.2';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo','lift_prog_name'];
+const APP_VERSION='2.3';  // bump on each deploy; shown in Settings → About
+const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -1705,44 +1705,34 @@ function exportBackup(){
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
-function importBackup(evt){
-  // Two entry points share this handler:
-  //  - hidden file <input onchange="importBackup(event)"> passes the change event,
-  //    so we read the file the user already chose (event.target.files[0]).
-  //  - plain button onclick="importBackup()" passes nothing, so we open our own picker.
-  const readFile=file=>{
-    if(!file)return;
+function importBackup(){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
     reader.onload=ev=>{
       try{
         const data=JSON.parse(ev.target.result);
         if(!data.v){alert('Unrecognized backup file.');return;}
-        // Safety snapshot so a botched import can be rolled back within 10 seconds.
+        // Safety snapshot — store the current state in lift_import_snapshot
+        // so a botched import can be rolled back within 10 seconds.
         const snapshot={};
         BACKUP_KEYS.forEach(k=>{const v=LS.get(k);if(v!==null)snapshot[k]=v;});
         snapshot._stamp=Date.now();
         LS.set('lift_import_snapshot',snapshot);
         // Apply import
         BACKUP_KEYS.forEach(k=>{if(data[k]!==undefined)LS.set(k,data[k]);});
-        // Imported data may use legacy exercise ids -- force the (idempotent)
+        // Imported data may use legacy exercise ids — force the (idempotent)
         // migration to re-run on reload so old ids never sit unmigrated.
         LS.set('lift_id_migration_v', 0);
+        // Show undo toast for 10 seconds before reload
         showImportUndoToast();
         setTimeout(()=>location.reload(),10500);
       }catch{alert('Could not read backup file.');}
     };
     reader.readAsText(file);
   };
-  // From the hidden file input: consume the already-selected file.
-  if(evt&&evt.target&&evt.target.files){
-    readFile(evt.target.files[0]);
-    evt.target.value='';   // reset so the same file can be re-imported later
-    return;
-  }
-  // From a button: create a transient picker.
-  const inp=document.createElement('input');
-  inp.type='file';inp.accept='.json,application/json';
-  inp.onchange=e=>readFile(e.target.files[0]);
   document.body.appendChild(inp);inp.click();inp.remove();
 }
 
@@ -3793,28 +3783,6 @@ function rBStep1(){
     {k:'endurance',  label:'Endurance',   c:'#ff4444', desc:'Muscular endurance and conditioning. High rep, lower load. 12–20 reps @ 50–65%.'},
   ];
   return`
-<div class="sec-label">Start from a proven program</div>
-<div style="font-size:12px;color:var(--txt3);margin-bottom:10px;line-height:1.5">
-  Load a widely-cited strength program with its full progression scheme, or build your own below.
-</div>
-<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">
-  ${FAMOUS_PROGRAMS.map(fp=>`
-    <button onclick="showLoadFamousProgramModal('${fp.id}')"
-      style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;
-      padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;
-      font-family:inherit;text-align:left;width:100%">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--txt)">${esc(fp.name)}</div>
-        <div style="font-size:10px;color:var(--txt3);margin-top:2px">${fp.daysCount} days · ${esc(fp.author)}</div>
-      </div>
-      <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
-    </button>`).join('')}
-</div>
-<div style="display:flex;align-items:center;gap:10px;margin:16px 0 14px">
-  <div style="flex:1;height:1px;background:var(--border)"></div>
-  <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);text-transform:uppercase">or build your own</div>
-  <div style="flex:1;height:1px;background:var(--border)"></div>
-</div>
 <div class="sec-label">Training Goal</div>
 ${goals.map(g=>`
   <div class="split-card ${S.bGoal===g.k?'sel':''}" onclick="S.bGoal='${g.k}';render()">
@@ -4120,7 +4088,11 @@ function rCustomExercises(){
     </div>`:    `<div style="font-size:12px;color:var(--txt3);margin-bottom:10px;
       padding:10px 12px;background:var(--bg2);border-radius:8px">
       No exercises yet — tap + to add
-    </div>`}
+    </div>
+  ${(()=>{const n=getLatestNote(exId);return n?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+    font-size:11px;color:var(--txt3);font-style:italic;line-height:1.4">
+    📝 ${esc(n.note)} <span style="color:#555">· ${new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`:'';})()}
+  </div>`}
 
     <!-- MG filter tabs -->
     <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px">
@@ -6614,6 +6586,21 @@ function rSettings(){
     <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
   </button>
 
+  <!-- CUSTOM EXERCISES ENTRY -->
+  <button onclick="showCustomExManager()" aria-label="Manage custom exercises"
+    style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:11px;
+    padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:13px;
+    font-family:inherit;text-align:left;margin-bottom:20px">
+    <div style="font-size:22px;flex-shrink:0">🏋️</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:700;color:var(--txt)">Custom Exercises</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:2px">
+        Add your own movements (name, muscle group, equipment) and remove ones you no longer use
+      </div>
+    </div>
+    <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
+  </button>
+
   <!-- TRAINING PREFERENCES -->
   <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--txt3);
     text-transform:uppercase;margin-bottom:10px">Training</div>
@@ -6842,7 +6829,8 @@ function showSavePresetPrompt(){
   render();
 }
 
-function showCustomExModal(){
+function showCustomExModal(source){
+  window._cexSource=source||null; // 'manager' => return to library after create
   const div=document.createElement('div');
   div.id='custom-ex-modal';div.className='modal-bg';
   div.innerHTML=`
@@ -6913,6 +6901,7 @@ function selectCexMg(mg){
 function closeCustomExModal(){
   const m=document.getElementById('custom-ex-modal');if(m)m.remove();
   delete window._cexMg;
+  delete window._cexSource;
 }
 
 function submitCustomEx(){
@@ -6922,9 +6911,84 @@ function submitCustomEx(){
   const compound=document.getElementById('cex-compound')?.checked;
   if(!n){alert('Please enter an exercise name.');return;}
   if(!mg){alert('Please select a primary muscle group.');return;}
+  const fromManager=window._cexSource==='manager';
   saveCustomEx({n,mg,eq,compound});
   closeCustomExModal();
-  render();
+  if(fromManager)showCustomExManager(); // refresh the library list in place
+  else render();
+}
+
+// ── Custom exercise library / manager (Priority 3 — manage + delete) ────────
+// Discoverable surface for the otherwise-buried custom exercise feature.
+// Lists everything in lift_custom_ex, opens the create modal, and wires up
+// deleteCustomEx (which was previously dead code). No edit UI by design.
+function showCustomExManager(){
+  const existing=document.getElementById('cex-manager-modal');
+  if(existing)existing.remove(); // rebuild-in-place pattern for live refresh
+  const all=getCustomExs();
+  const ids=Object.keys(all).sort((a,b)=>(all[a].n||'').localeCompare(all[b].n||''));
+  const div=document.createElement('div');
+  div.id='cex-manager-modal';div.className='modal-bg';
+  div.onclick=closeCustomExManager; // backdrop closes
+  const rows = ids.length ? ids.map(id=>{
+    const e=all[id];
+    const c=MG_COLORS[e.mg]||'var(--txt3)';
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.n)}</div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap">
+          <span style="font-size:10px;font-weight:700;color:${c};background:${c}22;padding:2px 8px;border-radius:5px">${esc(e.mg||'—')}</span>
+          ${e.compound?`<span style="font-size:10px;color:var(--txt3);font-weight:600">Compound</span>`:''}
+          ${e.eq?`<span style="font-size:10px;color:var(--txt3)">${esc(e.eq)}</span>`:''}
+        </div>
+      </div>
+      <button onclick="deleteCustomExFromManager('${id}')" aria-label="Delete ${esc(e.n)}"
+        style="background:none;border:1px solid var(--border2);color:var(--red);border-radius:8px;
+        width:38px;height:38px;font-size:15px;cursor:pointer;flex-shrink:0">🗑</button>
+    </div>`;
+  }).join('') : `<div style="text-align:center;color:var(--txt3);font-size:12.5px;line-height:1.5;padding:20px 8px">No custom exercises yet.<br>Create one and it appears in every picker with full history and volume tracking.</div>`;
+  div.innerHTML=`
+<div class="modal" onclick="event.stopPropagation()" style="max-width:400px;max-height:82vh;overflow-y:auto">
+  <div class="modal-handle"></div>
+  <div style="text-align:center;margin:10px 0 14px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Library</div>
+    <div style="font-size:18px;font-weight:700">Custom exercises</div>
+    <div style="font-size:11px;color:var(--txt3);margin-top:3px">${ids.length} custom · saved on this device</div>
+  </div>
+  <button onclick="showCustomExModal('manager')" class="btn btn-p" style="width:100%;height:46px;font-size:14px;font-weight:700;margin-bottom:14px">+ New exercise</button>
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${rows}</div>
+  <button onclick="closeCustomExManager()" class="btn btn-s" style="width:100%;height:44px;font-size:13px">Close</button>
+</div>`;
+  document.body.appendChild(div);
+}
+
+function closeCustomExManager(){
+  const m=document.getElementById('cex-manager-modal');if(m)m.remove();
+}
+
+function deleteCustomExFromManager(id){
+  const ex=getCustomExs()[id];
+  if(!ex)return;
+  // Count logged sets referencing this exId so the user knows what gets orphaned.
+  // Deleting does NOT erase logged sets — the set data survives in lift_hist, but
+  // with EX[id] gone the history/export falls back to showing the raw ID, and the
+  // exercise stops being selectable for new workouts.
+  const hist=getHistory()||[];
+  let sessions=0,sets=0;
+  hist.forEach(h=>{
+    const ei=(h.exIds||[]).indexOf(id);
+    if(ei>=0){sessions++;sets+=((h.sets&&h.sets[ei])||[]).filter(s=>s.done).length;}
+  });
+  let msg;
+  if(sessions>0){
+    msg=`"${ex.n}" has ${sets} logged set${sets===1?'':'s'} across ${sessions} session${sessions===1?'':'s'}.\n\nDeleting removes it from your exercise library and from new workouts. Your logged sets stay in history, but they'll show the raw exercise ID instead of the name.\n\nDelete anyway?`;
+  } else {
+    msg=`Delete "${ex.n}"? It will be removed from the exercise library. This can't be undone.`;
+  }
+  if(!confirm(msg))return;
+  deleteCustomEx(id);
+  showCustomExManager(); // refresh list in place
 }
 
 // ── Day-level program notes (Priority 3 feature) ────────────────────────────
