@@ -1633,7 +1633,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.3';  // bump on each deploy; shown in Settings → About
+const APP_VERSION='2.5';  // bump on each deploy; shown in Settings → About
 const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
@@ -3758,6 +3758,17 @@ function rHome(){
 // =====================================================================
 // PROGRAM BUILDER
 // =====================================================================
+// Cancel out of program creation. With an existing program, returning home
+// (and keeping that program untouched) is correct. During onboarding / first
+// run there is no program yet, so return to the builder's program-selection
+// screen (step 3 — splits / named programs / custom) rather than the empty
+// home screen or the goal step.
+function exitProgramCreation(){
+  S.bPreview=null;
+  if(getActiveProgram()){S.bStep=1;navTo('home');}
+  else{S.bStep=3;S.screen='builder';render();}
+}
+
 function rBuilder(){
   const step=S.bStep;
   return`
@@ -3766,7 +3777,7 @@ function rBuilder(){
     <div class="page-title"><span>PLAN</span></div>
     <div class="page-sub">${['','Select Goal','Select Days','Choose Split','Preview'][step]}</div>
   </div>
-  ${getActiveProgram()?`<button onclick="S.bStep=1;S.bPreview=null;navTo('home')" style="background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer">Cancel</button>`:''}
+  ${(getActiveProgram()||S.bStep>1)?`<button onclick="exitProgramCreation()" style="background:none;border:none;color:var(--txt2);font-size:13px;cursor:pointer">Cancel</button>`:''}
 </div>
 <div class="step-bar">
   ${[1,2,3,4].map(n=>`<div class="step-dot ${n<=step?'done':''}"></div>`).join('')}
@@ -3920,6 +3931,28 @@ ${dayNums.map(d=>`
     font-size:13px;font-weight:700;padding:11px;border-radius:10px;cursor:pointer">
     Build Custom Split →
   </button>
+</div>
+<div style="margin-top:14px;padding:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px">
+  <div style="font-size:13px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+    <span>📋</span> Load a named program
+  </div>
+  <div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:12px">
+    Proven intermediate strength templates with built-in progression schemes — loads complete and ready to run.
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    ${FAMOUS_PROGRAMS.map(fp=>`
+      <button onclick="showLoadFamousProgramModal('${fp.id}')"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:9px;
+        padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;
+        font-family:inherit;text-align:left;width:100%">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--txt)">${esc(fp.name)}</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:2px">${fp.daysCount} days · ${esc(fp.author)}</div>
+        </div>
+        <span style="font-size:20px;color:var(--txt3);flex-shrink:0">›</span>
+      </button>
+    `).join('')}
+  </div>
 </div>`;
 }
 
@@ -4107,6 +4140,10 @@ function rCustomExercises(){
           color:${sel?(col||'var(--txt)'):'var(--txt3)'}">${mg}</button>`;
       }).join('')}
     </div>
+    <button onclick="showCustomExModal('curate')"
+      style="margin-top:8px;width:100%;background:none;border:1px dashed var(--border2);
+      color:var(--txt2);font-size:12px;font-weight:600;padding:8px;border-radius:9px;
+      cursor:pointer;font-family:inherit">+ Create custom exercise</button>
   </div>
 
   <!-- Scrollable exercise list -->
@@ -6911,11 +6948,21 @@ function submitCustomEx(){
   const compound=document.getElementById('cex-compound')?.checked;
   if(!n){alert('Please enter an exercise name.');return;}
   if(!mg){alert('Please select a primary muscle group.');return;}
-  const fromManager=window._cexSource==='manager';
-  saveCustomEx({n,mg,eq,compound});
+  const src=window._cexSource;
+  const newId=saveCustomEx({n,mg,eq,compound});
   closeCustomExModal();
-  if(fromManager)showCustomExManager(); // refresh the library list in place
-  else render();
+  if(src==='manager'){
+    showCustomExManager(); // refresh the library list in place
+  } else if(src==='curate'){
+    // Created while curating a program day → drop it straight into that day
+    // and clear the muscle-group filter so it's immediately visible/selected.
+    const day=S.customDays&&S.customDays[S.customEditDayIdx];
+    if(day&&!day.exIds.includes(newId))day.exIds.push(newId);
+    S.customMgFilter='All';
+    render();
+  } else {
+    render();
+  }
 }
 
 // ── Custom exercise library / manager (Priority 3 — manage + delete) ────────
