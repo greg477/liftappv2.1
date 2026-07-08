@@ -791,10 +791,12 @@ function deleteLoggedSet(setIdx){
   // Confirm before destructive action
   if(!confirm(`Delete logged set: ${set.w} lbs × ${set.reps}?`))return;
   // Mark as not done (preserve the set slot for re-logging if user wants)
+  const wasPR=!!set.isPR;
   set.done=false;
   delete set.isPR;
   delete set.rpe;
   delete set.note;
+  if(wasPR)recomputePR(S.workout.exIds[S.workout.ei]); // drop the phantom best from lift_prs
   saveWorkoutState();
   if(navigator.vibrate)navigator.vibrate(20);
   render();
@@ -1633,7 +1635,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.5';  // bump on each deploy; shown in Settings → About
+const APP_VERSION='2.6';  // bump on each deploy; shown in Settings → About
 const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
@@ -1842,8 +1844,9 @@ function getLastSessionSets(exId){
   return null;
 }
 
-// Auto-progression: if the final completed set hits the rep ceiling for this mode,
-// commit +5lbs directly to the saved weight so the next workout defaults to it.
+// Auto-progression: if the TOP completed set (heaviest — not the last set, which
+// may be a lighter back-off) hits the rep ceiling for this mode, commit +incr
+// directly to the saved weight so the next workout defaults to it.
 // Returns {exId, exName, from, to} if progression fired, else null.
 function checkAutoProgression(exId, sets, mode){
   const done=sets.filter(s=>s.done);
@@ -1851,17 +1854,19 @@ function checkAutoProgression(exId, sets, mode){
   // Require at least N-1 sets completed — partial exercises don't earn progression
   const minSets=Math.max(1,sets.length-1);
   if(done.length<minSets)return null;
-  const finalSet=done[done.length-1];
+  // Top set = heaviest done set (ties → most reps). Keying off the LAST set let a
+  // back-off set at the rep ceiling overwrite — and regress — the working weight.
+  const topSet=done.reduce((b,x)=>x.w>b.w||(x.w===b.w&&x.reps>b.reps)?x:b,done[0]);
   const threshold=PROG_THRESHOLDS[mode];
-  if(threshold===undefined||finalSet.reps<threshold)return null;
+  if(threshold===undefined||topSet.reps<threshold)return null;
   const incr=getPrefs().incrLbs||5;
-  const newW=+(finalSet.w+incr).toFixed(1);
+  const newW=+(topSet.w+incr).toFixed(1);
   saveWeight(exId,newW);
   saveWeightMode(mode,exId,newW);
   const sugg=getWeightSuggestions();
   delete sugg[exId];
   LS.set('lift_sugg',sugg);
-  return{exId,exName:EX[exId]?.n||exId,from:finalSet.w,to:newW,reps:finalSet.reps,mode};
+  return{exId,exName:EX[exId]?.n||exId,from:topSet.w,to:newW,reps:topSet.reps,mode};
 }
 function dismissSuggestion(exId){
   const s=getWeightSuggestions();delete s[exId];LS.set('lift_sugg',s);
@@ -1873,7 +1878,7 @@ function dismissSuggestion(exId){
 // =====================================================================
 // TIMER
 // =====================================================================
-let timer={active:false,rem:0,total:0,iv:null};
+let timer={active:false,rem:0,total:0,iv:null,endsAt:0};
 let elapsedIv=null,_activeWtCb=null; // weight prompt callback
 // ── First-time Onboarding ─────────────────────────────────────────────
 let _obStep=0;
@@ -2080,27 +2085,38 @@ function _releaseWakeLock(){
   if(_wl){try{_wl.release();}catch(_){}}_wl=null;
 }
 document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='visible'&&timer.active)_timerTick(); // catch up rest timer after background suspension
   if(document.visibilityState==='visible'&&S.workout)await _acquireWakeLock();
   else if(document.visibilityState!=='visible') _releaseWakeLock();
 });
 
 
+// Rest timer is wall-clock based: we store an absolute end timestamp (endsAt)
+// and derive remaining seconds from Date.now(). The interval is only a display
+// refresh — iOS throttles/suspends intervals when the screen locks or the app
+// backgrounds, so a tick-counting timer silently runs long. Deriving from the
+// clock keeps it correct; the visibilitychange handler catches up immediately
+// on resume so the end alert fires as soon as the app is foregrounded.
+function _timerRemaining(){return Math.max(0,Math.ceil((timer.endsAt-Date.now())/1000));}
+function _timerTick(){
+  if(!timer.active)return;
+  timer.rem=_timerRemaining();
+  if(timer.rem<=0){
+    clearInterval(timer.iv);timer.active=false;
+    vibrate([100,50,100]);timerEndSound();
+    S.screen='active';render();
+  }else{updateTimerDisplay();}
+}
 function startTimer(sec){
   clearInterval(timer.iv);
-  timer={active:true,rem:sec,total:sec,iv:null};
-  timer.iv=setInterval(()=>{
-    timer.rem--;
-    if(timer.rem<=0){
-      clearInterval(timer.iv);timer.active=false;
-      vibrate([100,50,100]);timerEndSound();
-      S.screen='active';render();
-    }else{updateTimerDisplay();}
-  },1000);
+  timer={active:true,rem:sec,total:sec,iv:null,endsAt:Date.now()+sec*1000};
+  timer.iv=setInterval(_timerTick,500);
   S.screen='timer';render();
 }
 function skipTimer(){clearInterval(timer.iv);timer.active=false;S.screen='active';render();}
 function adjTimer(d){
-  timer.rem=Math.max(5,timer.rem+d);
+  timer.endsAt=Math.max(Date.now()+5000,timer.endsAt+d*1000); // floor at 5s remaining
+  timer.rem=_timerRemaining();
   timer.total=Math.max(timer.total,timer.rem);
   updateTimerDisplay();
 }
@@ -2519,6 +2535,21 @@ function calcE1RM(w,reps){
   }
   return+(w*(1+r/30)).toFixed(1);  // Epley
 }
+// Recompute an exercise's all-time best from history + the in-progress workout.
+// Used when a PR-flagged set is deleted so lift_prs doesn't keep a phantom best.
+function recomputePR(exId){
+  let best=null;
+  const scan=(sets,date)=>{sets.forEach(x=>{
+    if(!x.done||!x.w||!x.reps)return;
+    const e1=calcE1RM(x.w,x.reps);
+    if(!best||e1>best.e1rm)best={e1rm:e1,w:x.w,reps:x.reps,date};
+  });};
+  getHistory().forEach(h=>{const ei=h.exIds.indexOf(exId);if(ei!==-1)scan(h.sets[ei],h.date);});
+  if(S.workout){const ei=S.workout.exIds.indexOf(exId);if(ei!==-1)scan(S.workout.sets[ei],Date.now());}
+  const prs=getPRs();
+  if(best)prs[exId]=best;else delete prs[exId];
+  savePRs(prs);
+}
 function checkPR(exId,w,reps){
   if(!w||!reps)return null;
   const e1=calcE1RM(w,reps);
@@ -2872,8 +2903,14 @@ function undoLastSet(){
   if(!_lastSetSnapshot||!S.workout)return;
   clearTimeout(_undoTimer);
   const el=document.getElementById('undo-toast');if(el)el.remove();
-  const{ei,si,w,reps}=_lastSetSnapshot;
+  const{ei,si,w,reps,pr}=_lastSetSnapshot;
   S.workout.sets[ei][si]={w,reps,rpe:null,done:false};
+  // Roll back a PR committed by the undone set
+  if(pr){
+    const prs=getPRs();
+    if(pr.prev)prs[pr.exId]=pr.prev;else delete prs[pr.exId];
+    savePRs(prs);
+  }
   S.workout.ei=ei;S.workout.si=si;
   _lastSetSnapshot=null;
   if(timer.active){clearInterval(timer.iv);timer.active=false;}
@@ -2886,7 +2923,6 @@ function startWorkout(dayIdx){
   const day=ap[dayIdx];
   const exIds=getDayProgram(day.id);
   const mode=day.mode||S.mode;
-  const wts=getWeights();
   const m=MODES[mode];
   S.workout={
     day:day.id,dayLabel:day.label,mode,
@@ -2916,10 +2952,15 @@ function logSet(){
   const exId=S.workout.exIds[S.workout.ei];
   saveWeight(exId,cs.w);
   saveWeightMode(S.workout.mode,exId,cs.w);
-  // PR check — fires if this set's e1RM beats the all-time best for the exercise
+  // PR check — fires if this set's e1RM beats the all-time best for the exercise.
+  // Snapshot the prior PR entry first so undoLastSet can roll it back — otherwise
+  // an undone set leaves an inflated e1RM in lift_prs (which also seeds
+  // resolveWeight's fallback).
+  const prevPR=getPRs()[exId];
   const pr=checkPR(exId,cs.w,cs.reps);
   if(pr){
     cs.isPR=true; // mark for ★ badge in history detail
+    _lastSetSnapshot.pr={exId,prev:prevPR?{...prevPR}:null};
     setTimeout(()=>showPRToast(pr,EX[exId]?.n||exId),350);
   }
   const{sets,ei,si}=S.workout;
@@ -3066,8 +3107,8 @@ function swapExercise(altId){
   if(S.swapIdx===null)return;
   const idx=S.swapIdx;
   S.workout.exIds[idx]=altId;
-  const wts=getWeights();const m=MODES[S.workout.mode];
-  S.workout.sets[idx]=Array.from({length:m.sets},()=>({w:wts[altId]||0,reps:m.reps[1],rpe:null,done:false}));
+  const m=MODES[S.workout.mode];
+  S.workout.sets[idx]=Array.from({length:m.sets},()=>({w:resolveWeight(S.workout.mode,altId),reps:m.reps[1],rpe:null,done:false}));
   if(idx===S.workout.ei)S.workout.si=0;
   setDayCustom(S.workout.day,[...S.workout.exIds]);
   saveWorkoutState();
@@ -3095,8 +3136,8 @@ function swapBuilderEx(newId){
 function addAccessory(exId){
   if(!S.workout)return;
   S.workout.exIds.push(exId);
-  const wts=getWeights();const m=MODES[S.workout.mode];
-  S.workout.sets.push(Array.from({length:m.sets},()=>({w:wts[exId]||0,reps:m.reps[1],rpe:null,done:false})));
+  const m=MODES[S.workout.mode];
+  S.workout.sets.push(Array.from({length:m.sets},()=>({w:resolveWeight(S.workout.mode,exId),reps:m.reps[1],rpe:null,done:false})));
   setDayCustom(S.workout.day,[...S.workout.exIds]);
   saveWorkoutState();
   S.screen='active';render();
@@ -4537,7 +4578,7 @@ ${doneSets>0?`
   <!-- Primary action: always visible, full width -->
   <button class="btn btn-p" style="width:100%;height:52px;font-size:16px;font-weight:700;border-radius:12px" onclick="logSet()" aria-label="Log set ${w.si+1} of ${sets.length}">
     Log Set ${w.si+1}
-    <span style="opacity:.65;font-size:12px;font-weight:400;margin-left:6px">→ ${fmtTime(MODES[w.mode].rest)} rest</span>
+    <span style="opacity:.65;font-size:12px;font-weight:400;margin-left:6px">→ ${fmtTime(getExRest(w.exIds[w.ei])||MODES[w.mode].rest)} rest</span>
   </button>
   <!-- Secondary row -->
   <div style="display:flex;gap:8px;width:100%">
@@ -5023,7 +5064,7 @@ function rHistDetail(){
     if(!done.length)return'';
     const exVol=done.reduce((a,s)=>a+s.w*s.reps,0);
     const bestSet=done.reduce((b,s)=>s.w>b.w||(s.w===b.w&&s.reps>b.reps)?s:b,done[0]);
-    const e1rm=Math.round(bestSet.w*(1+bestSet.reps/30));
+    const e1rm=Math.round(calcE1RM(bestSet.w,bestSet.reps)); // use pref-aware capped formula, not raw Epley
     const mgC=MG_COLORS[EX[exId]?.mg]||mc;
     return`<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -5754,7 +5795,7 @@ function initChart(){
   h.slice().reverse().forEach(w=>{
     const ei=w.exIds.indexOf(exId);if(ei===-1)return;
     const done=w.sets[ei].filter(s=>s.done);if(!done.length)return;
-    const e1rm=Math.max(...done.map(s=>s.w*(1+s.reps/30)));
+    const e1rm=Math.max(...done.map(s=>calcE1RM(s.w,s.reps))); // use pref-aware capped formula, not raw Epley
     pts.push({x:new Date(w.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}),y:Math.round(e1rm)});
   });
   const wrap=document.getElementById('chart-wrap');if(!wrap)return;
@@ -6558,6 +6599,7 @@ function runExerciseIdMigrations(){
 
 function init(){
   runExerciseIdMigrations();   // remap any legacy ares-*/halo-* ids before reading stored data
+  mergeCustomExs();            // merge user-created exercises into EX BEFORE any stored id is validated (progEx pref, lift_wip)
   // Mirror splash image into background watermark — saves ~84KB of duplicate b64
   const splashImg=document.querySelector('#splash img');
   const wmImg=document.querySelector('#wm img');
@@ -6572,7 +6614,6 @@ function init(){
     elapsedIv=setInterval(()=>{const e=document.getElementById('w-elapsed');if(e)e.textContent=fmtElapsed();},1000);
   }
   smartSelectDay();
-  mergeCustomExs(); // Merge user-created exercises into runtime EX
     // Show splash first, then onboarding or app
   showSplash(()=>{
     const onboarded=LS.get('lift_onboarded');
@@ -7092,6 +7133,7 @@ function saveDayNote(dayIdx){
 function clearAllData(){
   BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
   localStorage.removeItem('lift_onboarded');
+  _histCache=null; // invalidate in-memory history cache — otherwise deleted history re-renders and re-persists on next save
   S.workout=null;S.screen='home';
   Object.assign(S,{activeDayIdx:0,progEx:null,progView:'chart',customDays:[],
     bStep:1,bGoal:'hypertrophy',bDays:4,bSplit:'upper-lower-4',bPreview:null});
@@ -7105,6 +7147,7 @@ function startOver(){
   if(!confirm('Are you sure? Everything will be permanently deleted.'))return;
   BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
   localStorage.removeItem('lift_onboarded');
+  _histCache=null; // invalidate in-memory history cache (same fix as clearAllData)
   S.workout=null;S.screen='home';_obStep=0;
   Object.assign(S,{activeDayIdx:0,progEx:null,progView:'chart',customDays:[],
     bStep:1,bGoal:'hypertrophy',bDays:4,bSplit:'upper-lower-4',bPreview:null,
