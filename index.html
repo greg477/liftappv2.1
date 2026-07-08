@@ -1520,8 +1520,50 @@ function showQuotaWarning(failedKey){
   });
   document.body.appendChild(b);
 }
+
+// Banner shown as history approaches (or hits) the entry cap — without this,
+// entry HIST_CAP+1 silently rolls the oldest workout off the end forever.
+let _histCapWarned=false;
+function showHistCapWarning(count){
+  if(_histCapWarned||document.getElementById('histcap-banner'))return;
+  _histCapWarned=true;
+  const over=count>HIST_CAP;
+  const b=document.createElement('div');
+  b.id='histcap-banner';
+  b.innerHTML=`
+<div style="display:flex;align-items:flex-start;gap:10px">
+  <div style="font-size:18px;flex-shrink:0;line-height:1">⚠</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:3px">History ${over?'cap reached':'nearly full'}</div>
+    <div style="font-size:11px;color:#ddd;line-height:1.5">
+      ${over?`History is capped at ${HIST_CAP} workouts — your oldest sessions are now being dropped as new ones are saved.`
+            :`You have ${count} of ${HIST_CAP} saved workouts. Once full, the oldest sessions are dropped.`}
+      Export a CSV or backup to preserve everything.
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button onclick="downloadHistoryCSV();this.closest('#histcap-banner').remove()"
+        style="background:#fff;color:#000;border:none;border-radius:6px;
+        padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">Export CSV</button>
+      <button onclick="this.closest('#histcap-banner').remove()"
+        style="background:none;border:1px solid #555;color:#ccc;border-radius:6px;
+        padding:6px 12px;font-size:11px;cursor:pointer">Dismiss</button>
+    </div>
+  </div>
+</div>`;
+  Object.assign(b.style,{
+    position:'fixed',top:'calc(12px + env(safe-area-inset-top))',
+    left:'12px',right:'12px',background:'#1f2a0a',
+    border:'1.5px solid #84cc16',borderRadius:'10px',
+    padding:'12px 14px',zIndex:'400',
+    boxShadow:'0 4px 24px rgba(0,0,0,.7)'
+  });
+  document.body.appendChild(b);
+}
 // HTML escape for any user-controlled string before innerHTML injection
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+// Escaped display name for an exercise id. ALWAYS use this (never raw EX[id].n)
+// when interpolating a name into HTML — custom exercise names are user input.
+function exName(id){return esc(EX[id]?.n||id);}
 // History cache — avoids repeated JSON.parse on every progress render
 let _histCache=null;
 function getHistory(){
@@ -1529,9 +1571,16 @@ function getHistory(){
   _histCache=LS.get('lift_hist')||[];
   return _histCache;
 }
+const HIST_CAP=500;   // hard cap (~2 yrs of daily training)
+const HIST_WARN=480;  // surface a warning before entries silently roll off
 function saveHistory(h){
-  _histCache=h.slice(0,500); // invalidate cache, cap at 500 entries (~2 yrs daily)
-  LS.set('lift_hist',_histCache);
+  if(h.length>=HIST_WARN)showHistCapWarning(h.length);
+  _histCache=h.slice(0,HIST_CAP);
+  const ok=LS.set('lift_hist',_histCache);
+  // On a failed write, drop the cache so reads reflect what's actually stored —
+  // otherwise a retry would duplicate the entry the cache already holds.
+  if(!ok)_histCache=null;
+  return ok;
 }
 function getWeights(){return LS.get('lift_wts')||{}}
 function saveWeight(id,w){const wts=getWeights();wts[id]=w;LS.set('lift_wts',wts)}
@@ -1635,7 +1684,7 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.6';  // bump on each deploy; shown in Settings → About
+const APP_VERSION='2.7';  // bump on each deploy; shown in Settings → About
 const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
 
 function deleteHistoryEntry(idx){
@@ -1650,13 +1699,17 @@ function deleteHistoryEntry(idx){
 // ── CSV Export (recommendation 10) ──────────────────────────────────────────
 // Exports complete training history as a CSV file for external analysis,
 // Excel/Sheets import, or use with Apple Shortcuts automation.
+// Local (not UTC) YYYY-MM-DD. toISOString() shifts any late-evening workout to
+// the next calendar day for timezones west of Greenwich, mismatching the in-app
+// calendar (which uses local getters throughout).
+function localDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function generateHistoryCSV(){
   const hist=getHistory()||[];
   if(!hist.length)return null;
   const rows=[['Date','Time','Day Label','Mode','Exercise','MG','Set #','Weight (lbs)','Reps','RPE','Volume','Note','PR']];
   hist.slice().sort((a,b)=>a.date-b.date).forEach(h=>{
     const d=new Date(h.date);
-    const dateStr=d.toISOString().slice(0,10);
+    const dateStr=localDateStr(d);
     const timeStr=d.toTimeString().slice(0,5);
     (h.exIds||[]).forEach((exId,ei)=>{
       const ex=EX[exId]||{n:exId,mg:''};
@@ -1689,7 +1742,7 @@ function downloadHistoryCSV(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`lift-history-${new Date().toISOString().slice(0,10)}.csv`;
+  a.download=`lift-history-${localDateStr(new Date())}.csv`;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
@@ -1701,12 +1754,13 @@ function exportBackup(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  const d=new Date().toISOString().slice(0,10);
+  const d=localDateStr(new Date());
   a.href=url;a.download=`lift-backup-${d}.json`;
   document.body.appendChild(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
 }
 
+let _importReloadTimer=null; // pending post-import reload; cancelled by undoImport
 function importBackup(){
   const inp=document.createElement('input');
   inp.type='file';inp.accept='.json,application/json';
@@ -1723,14 +1777,17 @@ function importBackup(){
         BACKUP_KEYS.forEach(k=>{const v=LS.get(k);if(v!==null)snapshot[k]=v;});
         snapshot._stamp=Date.now();
         LS.set('lift_import_snapshot',snapshot);
-        // Apply import
+        // Apply import — clean replace: remove every app key first so restoring
+        // a backup is a true restore (keys missing from the backup don't survive
+        // as leftovers from the current state).
+        BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
         BACKUP_KEYS.forEach(k=>{if(data[k]!==undefined)LS.set(k,data[k]);});
         // Imported data may use legacy exercise ids — force the (idempotent)
         // migration to re-run on reload so old ids never sit unmigrated.
         LS.set('lift_id_migration_v', 0);
         // Show undo toast for 10 seconds before reload
         showImportUndoToast();
-        setTimeout(()=>location.reload(),10500);
+        _importReloadTimer=setTimeout(()=>location.reload(),10500);
       }catch{alert('Could not read backup file.');}
     };
     reader.readAsText(file);
@@ -1772,6 +1829,7 @@ function showImportUndoToast(){
 }
 
 function undoImport(){
+  clearTimeout(_importReloadTimer); // cancel the pending reload — it could fire mid-restore
   const snap=LS.get('lift_import_snapshot');
   if(!snap){alert('No snapshot available.');return;}
   // Wipe imported keys, then restore the snapshot
@@ -2345,7 +2403,7 @@ function showImportPrompt(decoded){
   <div style="background:var(--bg2);border-radius:10px;padding:10px;margin-bottom:14px;max-height:240px;overflow-y:auto">
     ${program.map(day=>{
       const modeC=MODES[day.mode]?.c||'#888';
-      const exNames=(day.exIds||[]).map(id=>EX[id]?.n).filter(Boolean);
+      const exNames=(day.exIds||[]).map(id=>EX[id]?.n?exName(id):null).filter(Boolean);
       return`<div style="padding:8px 4px;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-size:13px;font-weight:700">${esc(day.label)}</span>
@@ -2863,7 +2921,7 @@ function showPRToast(pr,exName){
   t.innerHTML=`<div class="pr-burst">★</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:11px;font-weight:700;letter-spacing:.1em;color:#facc15">NEW PR</div>
-      <div style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${exName}</div>
+      <div style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(exName)}</div>
       <div style="font-size:11px;color:#888">e1RM ${pr.e1rm} lb${pr.prevE1rm?` · +${(pr.e1rm-pr.prevE1rm).toFixed(1)}`:''}</div>
     </div>`;
   document.body.appendChild(t);
@@ -2983,7 +3041,17 @@ function finishWorkout(){
     dur:Math.round((Date.now()-w.startTime)/60000),exIds:w.exIds,sets:w.sets,
     progressions:w.progressions||[]};
   h.unshift(summary);
-  saveHistory(h);
+  if(!saveHistory(h)){
+    // Storage full — the history write failed. Keep the workout active (lift_wip
+    // intact) so nothing is lost; the quota banner offers an export path.
+    saveWorkoutState();
+    _acquireWakeLock();
+    clearInterval(elapsedIv);
+    elapsedIv=setInterval(()=>{const e=document.getElementById('w-elapsed');if(e)e.textContent=fmtElapsed();},1000);
+    alert('Storage is full — this workout could NOT be saved to history.\nIt is still active. Export a backup or clear old history in Settings, then tap End Workout again.');
+    S.screen='active';render();
+    return;
+  }
   S.workout=null;
   LS.set('lift_wip',null);
   document.getElementById('nb-active').style.display='none';
@@ -3164,7 +3232,7 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
   <div class="modal-handle"></div>
   <div style="text-align:center;margin-bottom:4px">
     <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Exercise Complete</div>
-    <div style="font-size:18px;font-weight:700">${exName}</div>
+    <div style="font-size:18px;font-weight:700">${esc(exName)}</div>
     ${weight>0?`<div style="font-size:13px;color:var(--txt2);margin-top:4px">${weight} lbs</div>`:''}
   </div>
   ${progEvent?`
@@ -3417,7 +3485,7 @@ function showCompletionModal(summary){
       <div style="display:flex;align-items:center;justify-content:space-between;
         padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
         <span style="color:var(--txt);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
-          white-space:nowrap;padding-right:8px">${EX[e.id]?.n||e.id}</span>
+          white-space:nowrap;padding-right:8px">${exName(e.id)}</span>
         <span style="color:var(--txt2);flex-shrink:0;font-variant-numeric:tabular-nums">
           ${e.vol.toLocaleString()} lbs
         </span>
@@ -3454,10 +3522,11 @@ function removeCompletionModal(){
   const m=document.getElementById('completion-modal');if(m)m.remove();
 }
 
-// Short display name for exercise chips and pills
+// Short display name for exercise chips and pills. HTML-escaped — output goes
+// straight into innerHTML and custom exercise names are user input.
 function shortName(id){
   const n=EX[id]?.n||id;
-  return n
+  return esc(n
     .replace(/^Barbell /,'BB ')
     .replace(/^Dumbbell /,'DB ')
     .replace(/^Cable /,'CB ')
@@ -3466,7 +3535,7 @@ function shortName(id){
     .replace(/^Halo /,'')
     .replace(/^Ares 2\.0 /,'')
     .replace(/^DB One-Arm /,'DB ')
-    .split(' ').slice(0,3).join(' ');
+    .split(' ').slice(0,3).join(' '));
 }
 
 // =====================================================================
@@ -3770,10 +3839,10 @@ function rHome(){
       return`<div class="ex-row" style="border-left:3px solid ${mgC};padding-left:10px;margin-left:-10px">
         <div style="flex:1">
           <div class="ex-name">
-            ${isCustom?'<span class="custom-dot"></span>':''}${ex?.n||id}
+            ${isCustom?'<span class="custom-dot"></span>':''}${exName(id)}
             ${ex?.compound?'<span class="compound-badge">compound</span>':''}
           </div>
-          <div class="ex-meta">${ex?.eq||''} · <span style="color:${mgC}">${ex?.mg||''}</span></div>
+          <div class="ex-meta">${esc(ex?.eq||'')} · <span style="color:${mgC}">${ex?.mg||''}</span></div>
         </div>
         <button onclick="showExInfo('${id}')" style="background:none;border:1px solid var(--border);color:var(--txt3);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">ⓘ</button>
         <button class="ex-swap-btn" onclick="openProgramSwap(${i})">⇄</button>
@@ -4151,8 +4220,8 @@ function rCustomExercises(){
           </div>
           <div style="flex:1;min-width:0">
             <div style="font-size:12px;font-weight:600;color:${modeC};
-              white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.n}</div>
-            <div style="font-size:10px;color:var(--txt3)">${e.eq||''} · ${e.mg||''}</div>
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.n)}</div>
+            <div style="font-size:10px;color:var(--txt3)">${esc(e.eq||'')} · ${e.mg||''}</div>
           </div>
           <button onclick="S.customDays[${S.customEditDayIdx}].exIds=S.customDays[${S.customEditDayIdx}].exIds.filter(x=>x!=='${e.id}');render()"
             style="background:none;border:none;color:#444;font-size:17px;
@@ -4196,9 +4265,9 @@ function rCustomExercises(){
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:${added?700:500};
             color:${added?modeC:'var(--txt)'}">
-            ${e.n}${e.compound?'<span class="compound-badge">compound</span>':''}
+            ${esc(e.n)}${e.compound?'<span class="compound-badge">compound</span>':''}
           </div>
-          <div style="font-size:11px;color:var(--txt3)">${e.eq} · ${e.mg}</div>
+          <div style="font-size:11px;color:var(--txt3)">${esc(e.eq)} · ${e.mg}</div>
         </div>
         <button onclick="${added
           ?`S.customDays[${S.customEditDayIdx}].exIds=S.customDays[${S.customEditDayIdx}].exIds.filter(x=>x!=='${id}')`
@@ -4319,9 +4388,9 @@ ${S.bPreview.map((day,di)=>{
           <span style="color:var(--txt3);min-width:18px;font-size:11px;flex-shrink:0">${ei+1}</span>
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${ex?.n||id}${ex?.compound?'<span class="compound-badge">compound</span>':''}
+              ${exName(id)}${ex?.compound?'<span class="compound-badge">compound</span>':''}
             </div>
-            <div style="font-size:11px;color:var(--txt3);margin-top:1px">${ex?.eq||""} · ${ex?.mg||""}</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:1px">${esc(ex?.eq||"")} · ${ex?.mg||""}</div>
           </div>
           <button onclick="showExInfo('${id}')"
             style="background:none;border:1px solid var(--border);color:var(--txt3);
@@ -4417,7 +4486,7 @@ ${(()=>{
   <div style="padding:14px 16px;background:var(--bg2);display:flex;align-items:flex-start;justify-content:space-between">
     <div>
       <div style="font-size:17px;font-weight:700">
-        ${ex.n}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}${(()=>{
+        ${esc(ex.n)}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}${(()=>{
           // Best e1RM badge (recommendation #5)
           const prs=getPRs();
           const best=prs[exId];
@@ -4433,7 +4502,7 @@ ${(()=>{
         })()}
       </div>
       <div style="font-size:12px;color:var(--txt2);margin-top:3px">
-        ${ex.eq} · Set ${w.si+1}/${sets.length} · Target ${MODES[w.mode].reps[0]}–${MODES[w.mode].reps[1]} reps${getExTempo(exId)?` · <span style="font-family:ui-monospace,monospace;color:var(--mode);font-weight:600">Tempo ${getExTempo(exId)}</span>`:''}
+        ${esc(ex.eq)} · Set ${w.si+1}/${sets.length} · Target ${MODES[w.mode].reps[0]}–${MODES[w.mode].reps[1]} reps${getExTempo(exId)?` · <span style="font-family:ui-monospace,monospace;color:var(--mode);font-weight:600">Tempo ${getExTempo(exId)}</span>`:''}
       </div>
     </div>
     <button onclick="showExInfo('${exId}')" style="background:none;border:1px solid var(--border2);color:var(--txt3);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px">ⓘ</button>
@@ -4550,7 +4619,7 @@ ${(()=>{
 
 ${doneSets>0?`
   <div style="padding:0 16px 10px">
-    <div class="sec-label">Logged sets — ${ex.n}</div>
+    <div class="sec-label">Logged sets — ${esc(ex.n)}</div>
     <div class="card" style="padding:8px 16px">
       ${sets.filter(s=>s.done).map((s,i)=>{
         // Find the original index in sets[] for accurate undo/note targeting
@@ -4611,13 +4680,13 @@ function rTimer(){
       // All sets done — next is the next exercise
       const ni=w.ei+1;
       if(ni<w.exIds.length){
-        return{label:EX[w.exIds[ni]]?.n||w.exIds[ni], sub:'Next exercise'};
+        return{label:exName(w.exIds[ni]), sub:'Next exercise'};
       }
       return{label:'All exercises complete',sub:'Tap End Workout when ready'};
     }
     // Still sets remaining for current exercise
     const setNum=w.si+1;
-    return{label:EX[w.exIds[w.ei]]?.n||'',sub:`Set ${setNum} of ${w.sets[w.ei].length}`};
+    return{label:exName(w.exIds[w.ei]),sub:`Set ${setNum} of ${w.sets[w.ei].length}`};
   })();
   return`
 <div class="timer-wrap">
@@ -5069,8 +5138,8 @@ function rHistDetail(){
     return`<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div>
-          <div class="sec-label" style="margin-bottom:2px">${EX[exId]?.n||exId}</div>
-          <div style="font-size:11px;color:var(--txt3)">${EX[exId]?.eq||''}</div>
+          <div class="sec-label" style="margin-bottom:2px">${exName(exId)}</div>
+          <div style="font-size:11px;color:var(--txt3)">${esc(EX[exId]?.eq||'')}</div>
         </div>
         <div style="text-align:right;font-size:11px;color:var(--txt2)">
           <div style="color:${mgC};font-weight:600">${exVol.toLocaleString()} lbs vol</div>
@@ -5470,7 +5539,7 @@ ${S.progView==='strength'?rStrengthTab():''}
 
 <div style="padding:0 16px">
   <select id="prog-sel" onchange="S.progEx=this.value;initChart()">
-    ${exOpts.map(([id,e])=>`<option value="${id}" ${id===S.progEx?'selected':''}>${e.n}</option>`).join('')}
+    ${exOpts.map(([id,e])=>`<option value="${id}" ${id===S.progEx?'selected':''}>${esc(e.n)}</option>`).join('')}
   </select>
   <div class="card" style="margin-bottom:14px">
     <div id="chart-wrap" style="min-height:180px;display:flex;align-items:center;justify-content:center">
@@ -5559,11 +5628,11 @@ function rSwap(){
     const isSugg=ex.alt?.includes(id);
     return`<div class="ex-row" style="cursor:pointer" onclick="${selectFn}('${id}')">
       <div style="flex:1">
-        <div class="ex-name">${e.n}
+        <div class="ex-name">${esc(e.n)}
           ${isSugg?'<span class="sugg-badge">suggested</span>':''}
           ${e.compound?'<span class="compound-badge">compound</span>':''}
         </div>
-        <div class="ex-meta">${e.eq}</div>
+        <div class="ex-meta">${esc(e.eq)}</div>
       </div>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--mode)" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
     </div>`;
@@ -5584,8 +5653,8 @@ function rSwap(){
   <div class="cur-ex-card">
     <div style="width:9px;height:9px;border-radius:50%;background:${mgColor};flex-shrink:0"></div>
     <div style="flex:1">
-      <div style="font-size:15px;font-weight:600">${ex.n}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}</div>
-      <div style="font-size:11px;color:var(--txt2);margin-top:2px">${ex.eq} · <span style="color:${mgColor}">${muscle}</span></div>
+      <div style="font-size:15px;font-weight:600">${esc(ex.n)}${ex.compound?'<span class="compound-badge" style="vertical-align:middle;margin-left:8px">compound</span>':''}</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:2px">${esc(ex.eq)} · <span style="color:${mgColor}">${muscle}</span></div>
     </div>
   </div>
 </div>
@@ -5633,10 +5702,10 @@ function rAddEx(){
             const already=inSession.has(e.id);
             return`<div class="ex-row" style="cursor:pointer;${already?'opacity:.45':''}" onclick="${already?'':''} addAccessory('${e.id}')">
               <div style="flex:1">
-                <div class="ex-name">${e.n}${e.compound?'<span class="compound-badge">compound</span>':''}
+                <div class="ex-name">${esc(e.n)}${e.compound?'<span class="compound-badge">compound</span>':''}
                   ${already?'<span style="font-size:10px;color:var(--txt3);margin-left:6px">In session</span>':''}
                 </div>
-                <div class="ex-meta">${e.eq}</div>
+                <div class="ex-meta">${esc(e.eq)}</div>
               </div>
               <span style="color:${already?'var(--txt3)':'var(--mode)'};font-size:18px">${already?'✓':'+'}</span>
             </div>`;
@@ -6356,7 +6425,7 @@ function showExInfo(exId) {
   <!-- Title -->
   <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px">
     <div style="flex:1">
-      <div style="font-size:18px;font-weight:700;line-height:1.2">${ex.n}</div>
+      <div style="font-size:18px;font-weight:700;line-height:1.2">${esc(ex.n)}</div>
       <div style="font-size:12px;color:var(--txt2);margin-top:4px">${inf?.equip || ex.eq}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">
@@ -6600,6 +6669,10 @@ function runExerciseIdMigrations(){
 function init(){
   runExerciseIdMigrations();   // remap any legacy ares-*/halo-* ids before reading stored data
   mergeCustomExs();            // merge user-created exercises into EX BEFORE any stored id is validated (progEx pref, lift_wip)
+  // Discard a stale import-undo snapshot. It exists only for the 10s undo
+  // window; left behind it doubles the app's localStorage footprint.
+  {const snap=LS.get('lift_import_snapshot');
+   if(snap&&(!snap._stamp||Date.now()-snap._stamp>60000))localStorage.removeItem('lift_import_snapshot');}
   // Mirror splash image into background watermark — saves ~84KB of duplicate b64
   const splashImg=document.querySelector('#splash img');
   const wmImg=document.querySelector('#wm img');
