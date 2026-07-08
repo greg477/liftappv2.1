@@ -1,7 +1,7 @@
 // LIFT — Service Worker
 // NETWORK-FIRST for the app shell so users always get the latest deployed version
 // when online, with offline fallback to the last-known-good cached copy.
-const VERSION = 'lift-v10';           // bump this string on every deploy to force cache refresh
+const VERSION = 'lift-v111';           // bump this string on every deploy to force cache refresh
 const CACHE = VERSION;
 const ASSETS = [
   '/',
