@@ -75,21 +75,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
 .sdot.done{background:var(--mode);border-color:var(--mode)}
 .sdot
 
-.rpe-scale{display:flex;gap:4px}
-.rpe-btn{flex:1;height:64px;background:var(--bg2);border:2px solid var(--border2);
-  border-radius:10px;color:var(--txt);font-size:20px;font-weight:800;cursor:pointer;
-  transition:all .15s;display:flex;align-items:center;
-  justify-content:center;line-height:1}
-.rpe-btn.sel{background:var(--mode);color:#fff;border-color:var(--mode)}
-.rpe-btn[data-rpe="5"]{border-color:#22c55e44}
-.rpe-btn[data-rpe="6"]{border-color:#4ade8033}
-.rpe-btn[data-rpe="7"]{border-color:#facc1533}
-.rpe-btn[data-rpe="8"]{border-color:#fb923c33}
-.rpe-btn[data-rpe="9"]{border-color:#f8717133}
-.rpe-btn[data-rpe="10"]{border-color:#e2202033}
-.rpe-btn.sel[data-rpe="5"],.rpe-btn.sel[data-rpe="6"]{background:#22c55e;border-color:#22c55e;color:#000}
-.rpe-btn.sel[data-rpe="7"],.rpe-btn.sel[data-rpe="8"]{background:#f59e0b;border-color:#f59e0b;color:#000}
-.rpe-btn.sel[data-rpe="9"],.rpe-btn.sel[data-rpe="10"]{background:#e22020;border-color:#e22020;color:#fff}
 .timer-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:40px 24px;min-height:calc(100vh - var(--nav) - 160px)}
 .t-ring{position:relative;width:200px;height:200px;margin-bottom:24px}
@@ -438,27 +423,27 @@ select{width:100%;background:var(--bg2);border:1px solid var(--border2);color:va
 <div id="app">
   <div id="screen"></div>
   <nav id="nav">
-    <button class="nb on" id="nb-home" aria-label="Home" onclick="navTo('home')">
+    <button class="nb on" id="nb-home" aria-label="Home" data-action="nav" data-arg="home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       Today
     </button>
-    <button class="nb" id="nb-builder" aria-label="Plan / program builder" onclick="navTo('builder')">
+    <button class="nb" id="nb-builder" aria-label="Plan / program builder" data-action="nav" data-arg="builder">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Plan
     </button>
-    <button class="nb" id="nb-active" aria-label="Active workout" onclick="navTo('active')" style="display:none">
+    <button class="nb" id="nb-active" aria-label="Active workout" data-action="nav" data-arg="active" style="display:none">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Workout
     </button>
-    <button class="nb" id="nb-history" aria-label="History log" onclick="navTo('history')">
+    <button class="nb" id="nb-history" aria-label="History log" data-action="nav" data-arg="history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Log
     </button>
-    <button class="nb" id="nb-progress" aria-label="Progress and stats" onclick="navTo('progress')">
+    <button class="nb" id="nb-progress" aria-label="Progress and stats" data-action="nav" data-arg="progress">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Progress
     </button>
-    <button class="nb" id="nb-knowledge" aria-label="Knowledge library" onclick="navTo('knowledge')">
+    <button class="nb" id="nb-knowledge" aria-label="Knowledge library" data-action="nav" data-arg="knowledge">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       Learn
     </button>
@@ -660,6 +645,15 @@ const MODES = {
 // Strength: 5 reps (top of 2–5), Hypertrophy: 12 reps (top of 8–12), Endurance: 20 reps (top of 12–20)
 const PROG_THRESHOLDS = {strength:5, hypertrophy:12, endurance:20};
 
+// ── UI / behavior constants (Phase 3.8 — formerly magic numbers) ─────────────
+const SET_NOTE_MAX=200;      // set-note character limit
+const DAY_NOTE_MAX=300;      // day-note character limit
+const SWIPE_REVEAL_PX=88;    // swipe-to-delete reveal width on logged-set rows
+const W_PICKER_MAX=500;      // weight drum ceiling (lbs)
+const REP_PICKER_MAX=35;     // rep drum ceiling
+const DELOAD_INTERVAL_WK=5;  // deload at week 5, then every 5 weeks (Helms 2015; Israetel: 4–6wk)
+let _lastQuotaWarn=0;        // throttle timestamp for the storage-full banner
+
 // ── Per-set notes + swipe-to-delete (recommendations 7 & 13) ────────────────
 // State for active touch on a past-set-row
 let _setTouchState=null;
@@ -703,7 +697,7 @@ function setRowTouchMove(e,setIdx){
   // Apply horizontal transform if swiping
   if(_setTouchState.locked==='h'){
     // Only allow leftward swipe (negative dx) to reveal delete
-    const visibleDx=Math.min(0,Math.max(-88,dx));
+    const visibleDx=Math.min(0,Math.max(-SWIPE_REVEAL_PX,dx));
     _setTouchState.row.classList.add('swiping');
     _setTouchState.row.style.transform=`translateX(${visibleDx}px)`;
     e.preventDefault();
@@ -721,7 +715,7 @@ function setRowTouchEnd(e,setIdx){
     if(dx<=-50){
       // Reveal delete button — stays open until user taps elsewhere or taps it
       row.classList.add('revealed');
-      row.style.transform='translateX(-88px)';
+      row.style.transform=`translateX(-${SWIPE_REVEAL_PX}px)`;
       if(navigator.vibrate)navigator.vibrate(10);
     }else{
       // Snap back
@@ -732,28 +726,48 @@ function setRowTouchEnd(e,setIdx){
   _setTouchState=null;
 }
 
+// ── Shared modal helper (Phase 3.4) ──────────────────────────────────────────
+// Standardizes the hand-rolled show*/close* modal pairs: backdrop, dialog role,
+// backdrop-click and Escape both close. Migrate other modals to this as they
+// are touched; the set-note modal below is converted as the reference pattern.
+function openModal(id,innerHtml,opts={}){
+  closeModal(id);
+  const div=document.createElement('div');
+  div.id=id;div.className='modal-bg';
+  div.setAttribute('role','dialog');div.setAttribute('aria-modal','true');
+  div.innerHTML=`<div class="modal" onclick="event.stopPropagation()"${opts.maxWidth?` style="max-width:${opts.maxWidth}"`:''}>${innerHtml}</div>`;
+  if(opts.closeOnBackdrop!==false)div.addEventListener('click',()=>closeModal(id));
+  div._esc=e=>{if(e.key==='Escape')closeModal(id);};
+  document.addEventListener('keydown',div._esc);
+  document.body.appendChild(div);
+  return div;
+}
+function closeModal(id){
+  const m=document.getElementById(id);
+  if(!m)return;
+  if(m._esc)document.removeEventListener('keydown',m._esc);
+  m.remove();
+}
+
 function showSetNoteModal(setIdx){
   if(!S.workout||!S.workout.sets[S.workout.ei])return;
   const set=S.workout.sets[S.workout.ei][setIdx];
   if(!set)return;
-  const div=document.createElement('div');
-  div.id='set-note-modal';div.className='modal-bg';
-  div.innerHTML=`
-<div class="modal" onclick="event.stopPropagation()" style="max-width:380px">
+  openModal('set-note-modal',`
   <div class="modal-handle"></div>
   <div style="text-align:center;margin:8px 0 14px">
     <div style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px">Set Note</div>
     <div style="font-size:16px;font-weight:700">${set.w} lbs × ${set.reps}${set.rpe?' @ RPE '+set.rpe:''}</div>
   </div>
   <div style="margin-bottom:14px">
-    <textarea id="set-note-input" rows="3" maxlength="200"
+    <textarea id="set-note-input" rows="3" maxlength="${SET_NOTE_MAX}"
       placeholder="Quick note: form cue, how it felt, what to focus on…"
       style="width:100%;background:var(--bg3);border:1px solid var(--border2);
       color:var(--txt);font-size:13px;padding:11px 13px;border-radius:8px;
       outline:none;font-family:inherit;box-sizing:border-box;resize:vertical;
       line-height:1.5;min-height:70px">${esc(set.note||'')}</textarea>
     <div style="font-size:10px;color:var(--txt3);margin-top:5px;text-align:right">
-      Max 200 characters
+      Max ${SET_NOTE_MAX} characters
     </div>
   </div>
   <div style="display:flex;gap:8px">
@@ -761,20 +775,16 @@ function showSetNoteModal(setIdx){
       aria-label="Cancel">Cancel</button>
     <button onclick="saveSetNote(${setIdx})" class="btn btn-p" style="flex:2;height:46px;font-size:14px;font-weight:700"
       aria-label="Save note">Save</button>
-  </div>
-</div>`;
-  document.body.appendChild(div);
+  </div>`,{maxWidth:'380px'});
   setTimeout(()=>{const t=document.getElementById('set-note-input');if(t){t.focus();t.setSelectionRange(t.value.length,t.value.length);}},120);
 }
 
-function closeSetNoteModal(){
-  const m=document.getElementById('set-note-modal');if(m)m.remove();
-}
+function closeSetNoteModal(){closeModal('set-note-modal');}
 
 function saveSetNote(setIdx){
   const t=document.getElementById('set-note-input');
   if(!t||!S.workout)return;
-  const note=t.value.trim().slice(0,200);
+  const note=t.value.trim().slice(0,SET_NOTE_MAX);
   const set=S.workout.sets[S.workout.ei][setIdx];
   if(!set)return;
   if(note)set.note=note;
@@ -1454,6 +1464,8 @@ let S = {
   wStep:5,           // weight picker increment: 2.5 or 5
   progMgFilter:'All', // muscle group filter on progress screen
   progView:'chart',     // 'chart'|'volume'
+  histView:'list',      // history screen view (list | calendar)
+  calYM:null,           // history calendar month "YYYY-MM" (null = current)
   // Builder state
   bStep:1,
   bGoal:'hypertrophy',
@@ -1476,8 +1488,8 @@ const LS = {
       const isQuota=e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014);
       if(isQuota){
         const now=Date.now();
-        if(!window._lastQuotaWarn||(now-window._lastQuotaWarn)>60000){
-          window._lastQuotaWarn=now;
+        if(!_lastQuotaWarn||(now-_lastQuotaWarn)>60000){
+          _lastQuotaWarn=now;
           // Defer so this runs after current render cycle
           setTimeout(()=>showQuotaWarning(k),50);
         }
@@ -1684,8 +1696,36 @@ function getActiveProgram(){return LS.get('lift_prog')||null}
 function saveActiveProgram(prog){LS.set('lift_prog',prog);} // pure persist — mesocycle handled by beginProgram()
 
 // ---- Export / Import backup ----
-const APP_VERSION='2.7';  // bump on each deploy; shown in Settings → About
-const BACKUP_KEYS=['lift_hist','lift_wts','lift_wts_mode','lift_custom','lift_sugg','lift_exertion','lift_prog','lift_prog_mid','lift_pref','lift_wip','lift_bw','lift_notes','lift_onboarded','lift_prs','lift_meso','lift_stagnation','lift_custom_ex','lift_ex_rest','lift_progs','lift_ex_tempo'];
+const APP_VERSION='2.8';  // bump on each deploy; shown in Settings → About
+// ── localStorage schema ──────────────────────────────────────────────────────
+// Canonical index of every persisted key with its shape. Export/import,
+// clearAllData and startOver all iterate this list — a new key MUST be added
+// here or it silently escapes backup AND wipe.
+const BACKUP_KEYS=[
+  'lift_hist',       // [{date,day,dayLabel,mode,dur,exIds[],sets[][],progressions[]}] newest-first, capped at HIST_CAP
+  'lift_wts',        // {exId:lbs} legacy flat weight memory (fallback)
+  'lift_wts_mode',   // {mode:{exId:lbs}} mode-scoped weight memory (primary)
+  'lift_custom',     // {dayId:[exId]} per-day exercise overrides (swaps)
+  'lift_sugg',       // {exId:{...}} easy-session weight suggestions
+  'lift_exertion',   // {exId:[...]} post-exercise exertion (RPE) rating history
+  'lift_prog',       // [{id,label,mode,exIds[],notes?}] the active program
+  'lift_prog_mid',   // string — stable mesocycle id of the active program
+  'lift_prog_name',  // string — display name of the active program (was missing from this list)
+  'lift_pref',       // {mode,progEx,incrLbs,barLbs,soundOn,trackWeight,warmupRamp,oneRMFormula,...} user prefs
+  'lift_wip',        // in-progress workout snapshot (crash recovery)
+  'lift_bw',         // [{date,w}] bodyweight log, newest-first
+  'lift_notes',      // {exId:[{date,note}]} exercise notes, last 10 per exercise
+  'lift_onboarded',  // truthy once onboarding completes
+  'lift_prs',        // {exId:{e1rm,w,reps,date}} all-time bests
+  'lift_meso',       // per-program mesocycle metadata (start, deload dismissals)
+  'lift_stagnation', // {exId:{misses,lastDate}} consecutive missed-progression counter
+  'lift_custom_ex',  // {customId:{n,mg,eq,compound,_custom}} user-created exercises
+  'lift_ex_rest',    // {exId:seconds} per-exercise rest override
+  'lift_progs',      // [{name,program}] saved program presets
+  'lift_ex_tempo',   // {exId:'E-P-C-P'} per-exercise tempo prescriptions
+];
+// Deliberately NOT in BACKUP_KEYS: lift_import_snapshot (transient import-undo
+// copy) and lift_id_migration_v (migration cursor — reset to 0 on import).
 
 function deleteHistoryEntry(idx){
   if(!confirm('Delete this session from the log?'))return;
@@ -2377,7 +2417,7 @@ function deriveProgName(prog){
   if(!prog||!prog.length)return 'My Program';
   const days=prog.length;
   // Look up matching split if any
-  for(const[k,sp]of Object.entries(SPLITS)){
+  for(const[,sp]of Object.entries(SPLITS)){
     if(sp.days===days&&sp.schedule.every((d,i)=>d.label===prog[i]?.label)){
       return sp.name;
     }
@@ -2434,20 +2474,20 @@ function showImportPrompt(decoded){
 </div>`;
   document.body.appendChild(div);
   // Store the decoded program for the confirm handler
-  window._pendingImport=decoded;
+  _pendingImport=decoded;
 }
 function cancelImport(){
-  delete window._pendingImport;
+  _pendingImport=null;
   const m=document.getElementById('import-modal');if(m)m.remove();
   // Strip ?p= from URL so a refresh doesn't re-prompt
   if(history.replaceState)history.replaceState({},'',location.pathname);
 }
 function confirmImport(){
-  const pending=window._pendingImport;
+  const pending=_pendingImport;
   if(!pending){cancelImport();return;}
   beginProgram(pending.program);
   LS.set('lift_prog_name',pending.name);
-  delete window._pendingImport;
+  _pendingImport=null;
   const m=document.getElementById('import-modal');if(m)m.remove();
   if(history.replaceState)history.replaceState({},'',location.pathname);
   S.activeDayIdx=0;S.swapDayIdx=null;
@@ -2676,7 +2716,7 @@ function isDeloadDue(){
   const week=getMesoWeek();
   const m=getMesoMeta();
   // Suggest deload at week 5 (typical accumulation block), then every 5 weeks after
-  return week>=5 && week%5===0 && (m.deloadDismissedWeek||0) < week;
+  return week>=DELOAD_INTERVAL_WK && week%DELOAD_INTERVAL_WK===0 && (m.deloadDismissedWeek||0) < week;
 }
 function dismissDeloadPrompt(){
   const m=getMesoMeta();m.deloadDismissedWeek=getMesoWeek();_setMesoMeta(m);render();
@@ -2785,28 +2825,6 @@ const STRENGTH_STANDARDS={
 // ── Weekly volume trend (last 6 weeks) ──────────────────────────────────────
 // Israetel/RP model: track set count per MG over weeks to identify
 // MEV→MAV→MRV progression and signal deload need.
-function getVolumeOverWeeks(weeksBack=6){
-  const h=getHistory();
-  const MS_WEEK=7*24*60*60*1000;
-  const now=Date.now();
-  // Build week buckets — index 0 = oldest, weeksBack-1 = current week
-  const weeks=Array.from({length:weeksBack},()=>{
-    const wk={};Object.keys(VOL_TARGETS).forEach(mg=>wk[mg]=0);return wk;
-  });
-  h.forEach(w=>{
-    const ageWeeks=Math.floor((now-w.date)/MS_WEEK);
-    if(ageWeeks>=weeksBack||ageWeeks<0)return;
-    const bucket=weeksBack-1-ageWeeks; // newest on right
-    w.exIds.forEach((id,ei)=>{
-      const done=w.sets[ei].filter(s=>s.done);
-      if(!done.length)return;
-      const mg=EX[id]?.mg;
-      if(mg&&weeks[bucket][mg]!==undefined)weeks[bucket][mg]+=done.length;
-    });
-  });
-  return weeks;
-}
-
 // ── RPE trend per exercise (last 8 sessions) ────────────────────────────────
 // Rising average RPE at same/lower load = approaching MRV per Helms's RIR-based
 // autoregulation model. Falling RPE at rising load = adapting well.
@@ -2867,7 +2885,6 @@ function getRelativeStrength(){
   if(!bw)return[];
   const prs=getPRs();
   return Object.entries(STRENGTH_STANDARDS).map(([exId,std])=>{
-    const prW=prs[exId]?.w;
     const e1=prs[exId]?.e1rm||0;
     if(!e1)return{exId,name:std.name,ratio:null,level:'No data',color:'var(--txt3)'};
     const ratio=+(e1/bw).toFixed(2);
@@ -2889,7 +2906,6 @@ function getDaysSinceLastTrained(){
   const out={};
   Object.keys(VOL_TARGETS).forEach(mg=>out[mg]=null);
   for(const w of h){
-    const ages={};
     w.exIds.forEach((id,ei)=>{
       const done=w.sets[ei].filter(s=>s.done);
       if(!done.length)return;
@@ -3109,34 +3125,32 @@ function resumeTimer(){
   else{S.screen='active';render();}
 }
 
-function _doEndExercise(){
+// Shared wrap-up for the current exercise: commit weight memory (max set, not
+// last — which may be a back-off), record stagnation, check auto-progression,
+// then show the exertion modal. `onDone` is the continuation after rating.
+// (Phase 3.1: _doEndExercise/_doEndWorkout were ~90% duplicated.)
+function _endCurrentExercise(onDone){
   const w=S.workout;
   const exId=w.exIds[w.ei];
   const done=w.sets[w.ei].filter(s=>s.done);
-  // Use the max weight logged across all sets — not last set (which may be a back-off)
   const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
   if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
-  // Priority 2: record this attempt for stagnation detection
   recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
   const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
   if(prog)w.progressions.push(prog);
-  showExertionModal(exId,EX[exId]?.n||exId,maxW,prog,()=>{
+  showExertionModal(exId,EX[exId]?.n||exId,maxW,prog,onDone);
+}
+
+function _doEndExercise(){
+  _endCurrentExercise(()=>{
+    const w=S.workout;
     if(w.ei<w.exIds.length-1){w.ei++;w.si=0;S.screen='active';render();}
     else finishWorkout();
   });
 }
 
 function _doEndWorkout(){
-  const w=S.workout;
-  const exId=w.exIds[w.ei];
-  const done=w.sets[w.ei].filter(s=>s.done);
-  const maxW=done.length>0?Math.max(...done.map(s=>s.w)):0;
-  if(done.length>0){saveWeight(exId,maxW);saveWeightMode(w.mode,exId,maxW);}
-  // Symmetric with _doEndExercise: track stagnation for the final exercise too
-  recordExerciseAttempt(exId,w.sets[w.ei],w.mode);
-  const prog=checkAutoProgression(exId,w.sets[w.ei],w.mode);
-  if(prog)w.progressions.push(prog);
-  showExertionModal(exId,EX[exId]?.n||exId,maxW,prog,()=>finishWorkout());
+  _endCurrentExercise(()=>finishWorkout());
 }
 
 function prevExercise(){
@@ -3226,7 +3240,6 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
   removeExertionModal();
   const div=document.createElement('div');
   div.id='exertion-modal';div.className='modal-bg';
-  const colors={1:'#1d9e75',2:'#1d9e75',3:'#1d9e75',4:'#1d9e75',5:'#ef9f27',6:'#ef9f27',7:'#ef9f27',8:'#e24b4a',9:'#e24b4a',10:'#e24b4a'};
   div.innerHTML=`
 <div class="modal" onclick="event.stopPropagation()">
   <div class="modal-handle"></div>
@@ -3243,7 +3256,7 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
       <div style="font-size:13px;font-weight:700;color:#e22020">Weight progressed!</div>
       <div style="font-size:12px;color:var(--txt2);margin-top:2px">
         Next session defaults to <strong style="color:var(--txt)">${progEvent.to} lbs</strong>
-        <span style="color:var(--txt3)">(+5 from ${progEvent.from})</span>
+        <span style="color:var(--txt3)">(+${+(progEvent.to-progEvent.from).toFixed(1)} from ${progEvent.from})</span>
       </div>
       <div style="font-size:11px;color:var(--txt3);margin-top:2px">
         Hit ${progEvent.reps} reps — top of ${MODES[progEvent.mode]?.n||progEvent.mode} range
@@ -3308,7 +3321,7 @@ function showExertionModal(exId,exName,weight,progEvent,thenFn){
   </button>
 </div>`;
   document.body.appendChild(div);
-  window._exertionThen=thenFn;
+  _exertionThen=thenFn;
 }
 function removeExertionModal(){const m=document.getElementById('exertion-modal');if(m)m.remove();}
 function selectExertion(rating,exId,weight){
@@ -3316,7 +3329,7 @@ function selectExertion(rating,exId,weight){
   const noteEl=document.getElementById('ex-note-field');
   if(noteEl&&noteEl.value.trim())saveNote(exId,noteEl.value.trim());
   removeExertionModal();
-  if(window._exertionThen)window._exertionThen(rating);
+  if(_exertionThen)_exertionThen(rating);
 }
 
 // =====================================================================
@@ -3695,7 +3708,6 @@ function rHomeAlerts(){
 
 function rHome(){
   const ap=getActiveProgram();
-  const m=MODES[S.mode];
   const today=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   if(!ap){
     return`
@@ -4231,11 +4243,7 @@ function rCustomExercises(){
     </div>`:    `<div style="font-size:12px;color:var(--txt3);margin-bottom:10px;
       padding:10px 12px;background:var(--bg2);border-radius:8px">
       No exercises yet — tap + to add
-    </div>
-  ${(()=>{const n=getLatestNote(exId);return n?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
-    font-size:11px;color:var(--txt3);font-style:italic;line-height:1.4">
-    📝 ${esc(n.note)} <span style="color:#555">· ${new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`:'';})()}
-  </div>`}
+    </div>`}
 
     <!-- MG filter tabs -->
     <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px">
@@ -4504,6 +4512,9 @@ ${(()=>{
       <div style="font-size:12px;color:var(--txt2);margin-top:3px">
         ${esc(ex.eq)} · Set ${w.si+1}/${sets.length} · Target ${MODES[w.mode].reps[0]}–${MODES[w.mode].reps[1]} reps${getExTempo(exId)?` · <span style="font-family:ui-monospace,monospace;color:var(--mode);font-weight:600">Tempo ${getExTempo(exId)}</span>`:''}
       </div>
+      ${(()=>{const n=getLatestNote(exId);return n?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+        font-size:11px;color:var(--txt3);font-style:italic;line-height:1.4">
+        📝 ${esc(n.note)} <span style="color:#555">· ${new Date(n.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span></div>`:'';})()}
     </div>
     <button onclick="showExInfo('${exId}')" style="background:none;border:1px solid var(--border2);color:var(--txt3);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px">ⓘ</button>
     <button class="ex-swap-btn" onclick="openSwap(${w.ei})">⇄ Swap</button>
@@ -4720,10 +4731,10 @@ function rTimer(){
       <div style="flex:1;background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:10px;color:var(--txt3);margin-bottom:4px">VOLUME</div><div style="font-size:20px;font-weight:700">${vol>=1000?(vol/1000).toFixed(1)+'k':vol}</div></div>
     </div>`;
   })():''}
-  <div style="display:flex;gap:10px;margin-bottom:16px"> <button class="btn btn-s btn-sm" onclick="adjTimer(-15)" style="min-width:60px">−15s</button>
-    <button class="btn btn-s btn-sm" onclick="adjTimer(30)" style="min-width:60px">+30s</button>
+  <div style="display:flex;gap:10px;margin-bottom:16px"> <button class="btn btn-s btn-sm" data-action="adj-timer" data-arg="-15" style="min-width:60px">−15s</button>
+    <button class="btn btn-s btn-sm" data-action="adj-timer" data-arg="30" style="min-width:60px">+30s</button>
   </div>
-  <button class="btn btn-p" style="width:200px;height:48px;font-size:15px" onclick="skipTimer()">Skip Rest</button>
+  <button class="btn btn-p" style="width:200px;height:48px;font-size:15px" data-action="skip-timer">Skip Rest</button>
 </div>
 <div class="workout-bar">
   <button class="btn btn-s" onclick="endExercise()">
@@ -5722,8 +5733,8 @@ function rAddEx(){
 // INTERACTIONS
 // =====================================================================
 // ---- PICKER VALUE LISTS ----
-function makeWeightValues(){const v=[];for(let w=0;w<=500;w+=S.wStep)v.push(+w.toFixed(1));return v;}
-function makeRepValues(){const v=[];for(let r=1;r<=35;r++)v.push(r);return v;}
+function makeWeightValues(){const v=[];for(let w=0;w<=W_PICKER_MAX;w+=S.wStep)v.push(+w.toFixed(1));return v;}
+function makeRepValues(){const v=[];for(let r=1;r<=REP_PICKER_MAX;r++)v.push(r);return v;}
 
 // ---- PICKER INIT (called after active screen renders) ----
 const DRUM_H=44; // item height px
@@ -5737,6 +5748,10 @@ function initPickers(){
 
 function _initDrum(id, vals, initVal, onChange){
   const el=document.getElementById(id);if(!el)return;
+  // toggleWStep replaces only the picker's CHILDREN, so listeners attached here
+  // survive on the element itself — remove any previous pair before re-adding,
+  // otherwise each 2.5↔5 toggle stacks another scroll/scrollend handler.
+  if(el._drumScroll){el.removeEventListener('scroll',el._drumScroll);el.removeEventListener('scrollend',el._drumEnd);}
   // Find nearest valid index
   const idx=vals.reduce((b,v,i)=>Math.abs(v-initVal)<Math.abs(vals[b]-initVal)?i:b, 0);
   // Scroll without animation
@@ -5744,27 +5759,19 @@ function _initDrum(id, vals, initVal, onChange){
   el.scrollTop=idx*DRUM_H;
   // Debounced scroll handler
   let t;
-  el.addEventListener('scroll',()=>{
+  el._drumScroll=()=>{
     clearTimeout(t);
     t=setTimeout(()=>{
       const i=Math.round(el.scrollTop/DRUM_H);
       if(i>=0&&i<vals.length)onChange(vals[i]);
     },120);
-  },{passive:true});
-  el.addEventListener('scrollend',()=>{
+  };
+  el.addEventListener('scroll',el._drumScroll,{passive:true});
+  el._drumEnd=()=>{
     const i=Math.round(el.scrollTop/DRUM_H);
     if(i>=0&&i<vals.length)onChange(vals[i]);
-  },{passive:true});
-}
-
-// ---- RPE — targeted update, no full re-render ----
-function setRPE(r){
-  const cs=curSet();if(!cs)return;
-  cs.rpe=(cs.rpe===r)?null:r;
-  document.querySelectorAll('.rpe-btn').forEach(btn=>{
-    const v=parseInt(btn.getAttribute('data-rpe'));
-    btn.classList.toggle('sel',v===cs.rpe);
-  });
+  };
+  el.addEventListener('scrollend',el._drumEnd,{passive:true});
 }
 
 // ---- Suggestion banner — targeted DOM removal ----
@@ -5806,11 +5813,6 @@ function toggleWStep(){
   // Re-attach scroll handler and scroll to current value
   _initDrum('w-picker',vals,cs?.w||0,val=>{const c=curSet();if(c)c.w=val;});
 }
-
-// Legacy — kept for programmatic use
-function adjW(d){const cs=curSet();if(!cs)return;cs.w=Math.max(0,+(cs.w+d).toFixed(1));}
-function adjR(d){const cs=curSet();if(!cs)return;cs.reps=Math.max(1,cs.reps+d);}
-function promptWeight(){}
 
 function openSwap(idx){S.swapIdx=idx;S.swapCtx='workout';S.swapEqFilter='All';S.screen='swap';render();}
 function openProgramSwap(idx){S.swapIdx=idx;S.swapCtx='program';S.swapEqFilter='All';S.screen='swap';render();}
@@ -6666,6 +6668,24 @@ function runExerciseIdMigrations(){
   LS.set('lift_id_migration_v', MIGRATION_VERSION);
 }
 
+// ── Event delegation (Phase 3.3) ─────────────────────────────────────────────
+// One document-level listener dispatches clicks on [data-action] elements.
+// Prefer data-action/data-arg over inline onclick="" for new or migrated UI —
+// inline handlers force every function global and interpolate arguments into
+// JS strings. Migration is incremental: add an ACTIONS entry, swap the
+// attribute. The nav bar and rest-timer controls are converted as the pattern.
+const ACTIONS={
+  'nav':arg=>navTo(arg),
+  'adj-timer':arg=>adjTimer(+arg),
+  'skip-timer':()=>skipTimer(),
+};
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-action]');
+  if(!el)return;
+  const fn=ACTIONS[el.dataset.action];
+  if(fn)fn(el.dataset.arg,el,e);
+});
+
 function init(){
   runExerciseIdMigrations();   // remap any legacy ares-*/halo-* ids before reading stored data
   mergeCustomExs();            // merge user-created exercises into EX BEFORE any stored id is validated (progEx pref, lift_wip)
@@ -6980,8 +7000,15 @@ function showSavePresetPrompt(){
   render();
 }
 
+// Module-scoped UI state for the custom-exercise modal and share-import flow —
+// previously ad-hoc globals hung off the window object (Phase 3.5).
+let _exertionThen=null;   // continuation invoked when the exertion modal closes
+let _pendingImport=null;  // program decoded from a share URL, awaiting confirm
+let _cexMg=null;          // custom-exercise modal: selected muscle group
+let _cexSource=null;      // custom-exercise modal: launch source ('manager' => return to library)
+
 function showCustomExModal(source){
-  window._cexSource=source||null; // 'manager' => return to library after create
+  _cexSource=source||null; // 'manager' => return to library after create
   const div=document.createElement('div');
   div.id='custom-ex-modal';div.className='modal-bg';
   div.innerHTML=`
@@ -7035,12 +7062,12 @@ function showCustomExModal(source){
   </div>
 </div>`;
   document.body.appendChild(div);
-  window._cexMg=null;
+  _cexMg=null;
   setTimeout(()=>{const n=document.getElementById('cex-name');if(n)n.focus();},120);
 }
 
 function selectCexMg(mg){
-  window._cexMg=mg;
+  _cexMg=mg;
   document.querySelectorAll('#cex-mg-row button').forEach(b=>{
     const sel=b.dataset.mg===mg;
     b.style.borderColor=sel?'var(--red)':'var(--border2)';
@@ -7051,18 +7078,18 @@ function selectCexMg(mg){
 
 function closeCustomExModal(){
   const m=document.getElementById('custom-ex-modal');if(m)m.remove();
-  delete window._cexMg;
-  delete window._cexSource;
+  _cexMg=null;
+  _cexSource=null;
 }
 
 function submitCustomEx(){
   const n=document.getElementById('cex-name')?.value.trim();
-  const mg=window._cexMg;
+  const mg=_cexMg;
   const eq=document.getElementById('cex-eq')?.value.trim();
   const compound=document.getElementById('cex-compound')?.checked;
   if(!n){alert('Please enter an exercise name.');return;}
   if(!mg){alert('Please select a primary muscle group.');return;}
-  const src=window._cexSource;
+  const src=_cexSource;
   const newId=saveCustomEx({n,mg,eq,compound});
   closeCustomExModal();
   if(src==='manager'){
@@ -7169,14 +7196,14 @@ function showDayNoteModal(dayIdx){
     <div style="font-size:18px;font-weight:700">${esc(day.label||'Day '+(dayIdx+1))}</div>
   </div>
   <div style="margin-bottom:14px">
-    <textarea id="day-note-input" rows="4" maxlength="300"
+    <textarea id="day-note-input" rows="4" maxlength="${DAY_NOTE_MAX}"
       placeholder="Notes for this day — focus areas, form cues, program intent…"
       style="width:100%;background:var(--bg3);border:1px solid var(--border2);
       color:var(--txt);font-size:13px;padding:11px 13px;border-radius:8px;
       outline:none;font-family:inherit;box-sizing:border-box;resize:vertical;
       line-height:1.5;min-height:80px">${esc(day.notes||'')}</textarea>
     <div style="font-size:10px;color:var(--txt3);margin-top:5px;text-align:right">
-      Max 300 characters
+      Max ${DAY_NOTE_MAX} characters
     </div>
   </div>
   <div style="display:flex;gap:8px">
@@ -7195,7 +7222,7 @@ function saveDayNote(dayIdx){
   if(!t)return;
   const prog=getActiveProgram();
   if(!prog||!prog[dayIdx])return;
-  const note=t.value.trim().slice(0,300);
+  const note=t.value.trim().slice(0,DAY_NOTE_MAX);
   if(note)prog[dayIdx].notes=note;
   else delete prog[dayIdx].notes;
   LS.set('lift_prog',prog);  // direct write — don't reset mesocycle
